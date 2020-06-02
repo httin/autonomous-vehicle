@@ -28,8 +28,8 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f4xx_it.h"
 #include <math.h>
+#include "stm32f4xx_it.h"
 /** @addtogroup Template_Project
   * @{
   */
@@ -136,24 +136,12 @@ void PendSV_Handler(void)
 {
 	
 }
-/** @Variable **/
+/** Declare Variable **/
 /*C,0.3,0,0.8,0.5,0.001,0.8,0.3,0.001*/
 uint8_t temp;
-/*--------------- Functions -------------------*/
-void GetVehicleVelocity(void)
-{
-	M1.Current_Vel = (GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M1) == 0) ? 
-		(((double)((M1.Enc + (M1.OverFlow - 1) * 65535) - M1.PreEnc)/ 39400) * 60) / Timer.T : // Backward up counting
-		(((double)(((65535 - M1.Enc) + (M1.OverFlow - 1) * 65535) - (65535 - M1.PreEnc))/ 39400) * 60) / Timer.T; // Front down
-
-	M1.Current_Vel = (M1.Current_Vel < 0) ? 0 : M1.Current_Vel;
-			
-	M2.Current_Vel = (GPIO_ReadOutputDataBit(Dir_GPIOx,Dir_GPIO_Pin_M2) == 0) ? 
-		(((double)((M2.Enc + (M2.OverFlow - 1) * 65535) - M2.PreEnc)/ 39400) * 60) / Timer.T :
-		(((double)(((65535 - M2.Enc) + (M2.OverFlow - 1) * 65535) - (65535 - M2.PreEnc))/ 39400) * 60) / Timer.T;
-
-	M2.Current_Vel = (M2.Current_Vel < 0) ? 0 : M2.Current_Vel;
-}
+struct queue u6_queue;
+uint8_t message[100]; // a message ends up with "\r\n"
+uint8_t get_message_flag; // set when receive "\r\n" indicating we get a full message to handle
 
 /**
   * @brief  This function Save data to internal flash memory
@@ -259,7 +247,6 @@ void DMA2_Stream5_IRQHandler(void)
 /** ----------------------------------------------------------- **/
 /** ----------------------------------------------------------- **/
 /** @brief : USART2 interrupt Rx Handler **/
-/** GPS interrupt **/
 void USART2_IRQHandler(void)
 {
 	if(USART_GetITStatus(USART2, USART_IT_IDLE))
@@ -332,388 +319,390 @@ void USART6_IRQHandler(void)
 void DMA2_Stream2_IRQHandler(void)
 {
 	DMA_ClearITPendingBit(DMA2_Stream2, DMA_IT_TCIF2);
-	if(Veh_RxBufToMsg(U6_RxBuffer, U6.Message) == Veh_NoneError)
+	int index = 0, i = 0;
+	while (U6_RxBuffer[index] != 0) 
 	{
-		switch(MsgToCmd(&U6.Message[0][0]))
+		u6_queue.buffer[u6_queue.front++] = U6_RxBuffer[index];
+		if (U6_RxBuffer[index] == '\r' && U6_RxBuffer[index + 1] == '\n')
 		{
-			/*----------------- Vehicle Config -------------------*/
-			case None:
-				U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
-				break;
-			
-			case Vehicle_Config:
-				if(StringHeaderCompare(&U6.Message[1][0],"FUZZY"))
-				{
-					IMU_UpdateFuzzyCoefficients(&Mag,
-						GetValueFromString(&U6.Message[2][0]),
-						GetValueFromString(&U6.Message[3][0]),
-						GetValueFromString(&U6.Message[4][0]));
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"DATA")) 
-				{
-					if(U6.Message[2][0] == '1')
+			++index;
+			u6_queue.buffer[u6_queue.front++] = U6_RxBuffer[index];
+			for (; i < u6_queue.front; ++i)
+			{
+				message[i] = u6_queue.buffer[i];
+			}
+			u6_queue.front = 0;
+			get_message_flag = 1;
+		}
+		++index;
+	}
+	/* clear rx buffer after getting all data */
+	while(--index >= 0)
+		U6_RxBuffer[index] = 0;
+
+	if(get_message_flag)
+	{
+		get_message_flag = 0;
+		if(Veh_SplitMsg(message, U6.Message) == Veh_NoneError)
+		{
+			switch(Veh_MsgToCmd(&U6.Message[0][0]))
+			{
+				/*----------------- Vehicle Config -------------------*/
+				case None:
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
+					break;
+				
+				case Vehicle_Config:
+					if(StringHeaderCompare(&U6.Message[1][0],"FUZZY"))
 					{
-						VehStt.Veh_SendData_Flag = Check_OK; //F7, vehicle sending data
+						IMU_UpdateFuzzyCoefficients(&Mag,
+							GetValueFromString(&U6.Message[2][0]),
+							GetValueFromString(&U6.Message[3][0]),
+							GetValueFromString(&U6.Message[4][0]));
 					}
-					else VehStt.Veh_SendData_Flag = Check_NOK; //F8, vehicle stop sending data
-				}
-				else
-				{
-					Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[1][0]))); // 0.5 m/s
-					PID_ParametersUpdate(&M1,
-						GetValueFromString(&U6.Message[2][0]),
-						GetValueFromString(&U6.Message[3][0]),
-						GetValueFromString(&U6.Message[4][0]));
-					PID_ParametersUpdate(&M2,
-						GetValueFromString(&U6.Message[5][0]),
-						GetValueFromString(&U6.Message[6][0]),
-						GetValueFromString(&U6.Message[7][0]));
-				}
-				U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1")); //ACK to PC
-				break;
-			
-			/*---------------- Sample time config (us)------------------*/	
-			case Sample_Time: 
-				Time_SampleTimeUpdate(&Timer, (uint32_t)GetValueFromString(&U6.Message[1][0]));
-				U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				break;
-			
-			/*---------------- Send data time config (ms)---------------*/
-			case SendData_Time: 
-				Time_SendTimeUpdate(&Timer, (uint32_t)GetValueFromString(&U6.Message[1][0]));
-				U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				break;
-			
-			/*---------------- IMU command and read data config --------*/
-			case IMU_Config: 
-				if(StringHeaderCompare(&U6.Message[1][0],"MAG2D"))
-				{
-					U1_SendData(FeedBack(U1_TxBuffer,"$MAG2D"));
-					Reset_Motor();
-					Robot_AntiClockwise();
-					Veh.Mode = Calib_Mode;
-					VehStt.Veh_Calib_Flag = Check_OK; // Update Calibration IMU status
-					PID_UpdateSetVel(&M1,50);
-					PID_UpdateSetVel(&M2,50);
-					StartTimer(TIM5, 3000);
-				}
-				U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				break;
-			
-			/*---------------- Software reset --------------------------*/
-			case Soft_Reset: 
-				Veh.Mode = Soft_Reset_Mode;
-				StartTimer(TIM5, 2000);
-				U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				break;
-			
-			/*---------------- Manual mode config ----------------------*/
-			case Manual_Config: 
-				if(StringHeaderCompare(&U6.Message[1][0],"START"))
-				{
-					Robot_Forward();
-					Reset_Motor();
-					Veh.Mode = Manual_Mode;
-					if(VehStt.IMU_FirstSetAngle)
+					else if(StringHeaderCompare(&U6.Message[1][0],"DATA")) 
 					{
-						IMU_UpdateSetAngle(&Mag,0);
+						if(U6.Message[2][0] == '1')
+							VehStt.Veh_SendData_Flag = Check_OK; //F7, vehicle sending data
+						else 
+							VehStt.Veh_SendData_Flag = Check_NOK; //F8, vehicle stop sending data
 					}
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
-				{
-					Reset_Motor();
-				}
-				else
-					Veh.ManualCtrlKey = U6.Message[1][0];
-				U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				break;
-			
-			/*---------------- Auto mode config ------------------------*/
-			case Auto_Config: 
-				if(StringHeaderCompare(&U6.Message[1][0],"START"))
-				{
-					Reset_Motor();
-					Robot_Forward();
-					Veh.Mode = Auto_Mode;
-					// Veh_UpdateMaxVelocity(&Veh,MPS2RPM(0.2));
-					GPS_NEO.Goal_Flag = Check_NOK;
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
-				{
-					Reset_Motor();
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"RUN"))
-				{
-					if(Veh.Mode == Auto_Mode)
+					else
 					{
-						if(GPS_NEO.NbOfWayPoints != 0)
+						Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[1][0]))); // 0.5 m/s
+						PID_ParametersUpdate(&M1, GetValueFromString(&U6.Message[2][0]),
+							GetValueFromString(&U6.Message[3][0]), GetValueFromString(&U6.Message[4][0]));
+						PID_ParametersUpdate(&M2, GetValueFromString(&U6.Message[5][0]),
+							GetValueFromString(&U6.Message[6][0]), GetValueFromString(&U6.Message[7][0]));
+					}
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1")); //ACK to PC
+					break;
+				
+				/*---------------- Sample time config (us)------------------*/	
+				case Sample_Time: 
+					Time_SampleTimeUpdate(&Timer, (uint32_t)GetValueFromString(&U6.Message[1][0]));
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					break;
+				
+				/*---------------- Send data time config (ms)---------------*/
+				case SendData_Time: 
+					Time_SendTimeUpdate(&Timer, (uint32_t)GetValueFromString(&U6.Message[1][0]));
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					break;
+				
+				/*---------------- IMU cmd and read data config --------*/
+				case IMU_Config: 
+					if(StringHeaderCompare(&U6.Message[1][0],"MAG2D"))
+					{
+						U1_SendData(FeedBack(U1_TxBuffer,"$MAG2D"));
+						Reset_Motor();
+						Robot_AntiClockwise();
+						Veh.Mode = Calib_Mode;
+						VehStt.Veh_Calib_Flag = Check_OK; // Update Calibration IMU status
+						PID_UpdateSetVel(&M1,50);
+						PID_UpdateSetVel(&M2,50);
+						StartTimer(TIM5, 3000);
+					}
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					break;
+				
+				/*---------------- Software reset --------------------------*/
+				case Soft_Reset: 
+					Veh.Mode = Soft_Reset_Mode;
+					StartTimer(TIM5, 2000);
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					break;
+				
+				/*---------------- Manual mode config ----------------------*/
+				case Manual_Config: 
+					if(StringHeaderCompare(&U6.Message[1][0],"START"))
+					{
+						Robot_Forward();
+						Reset_Motor();
+						Veh.Mode = Manual_Mode;
+						if(VehStt.IMU_FirstSetAngle)
 						{
-							VehStt.Veh_Auto_Flag = Check_OK;
+							IMU_UpdateSetAngle(&Mag,0);
+						}
+					}
+					else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
+					{
+						Reset_Motor();
+					}
+					else
+						Veh.ManualCtrlKey = U6.Message[1][0];
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					break;
+				
+				/*---------------- Auto mode config ------------------------*/
+				case Auto_Config: 
+					if(StringHeaderCompare(&U6.Message[1][0],"START"))
+					{
+						Reset_Motor();
+						Robot_Forward();
+						Veh.Mode = Auto_Mode;
+						GPS_NEO.Goal_Flag = Check_NOK;
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					}
+					else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
+					{
+						Reset_Motor();
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					}
+					else if(StringHeaderCompare(&U6.Message[1][0],"RUN"))
+					{
+						if(Veh.Mode == Auto_Mode)
+						{
+							if(GPS_NEO.NbOfWayPoints != 0)
+							{
+								VehStt.Veh_Auto_Flag = Check_OK;
+								U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+							}
+							else
+							{
+								VehStt.Veh_Auto_Flag = Check_NOK;
+								U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
+							}
+						}
+					}
+					else if(StringHeaderCompare(&U6.Message[1][0],"PAUSE"))
+					{
+						VehStt.Veh_Auto_Flag = Check_NOK;
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					}
+/*
+					else if(StringHeaderCompare(&U6.Message[1][0],"BACK"))
+					{
+						if((GPS_NEO.NbOfWayPoints != 0) && (GPS_NEO.Goal_Flag))
+						{
+							GPS_NEO.Goal_Flag = Check_NOK;
+							VehStt.Veh_Auto_Flag = Check_NOK;
+							Convert_Double_Array(GPS_NEO.Path_X, GPS_NEO.NbOfWayPoints);
+							Convert_Double_Array(GPS_NEO.Path_Y, GPS_NEO.NbOfWayPoints);
+							GPS_NEO.NbOfP = 0;
+							GPS_ClearPathBuffer(&GPS_NEO);
+							GPS_PathPlanning(&GPS_NEO, GPS_NEO.Step);
+							GPS_UpdatePathYaw(&GPS_NEO);
+							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						}
+					}
+*/
+					else if(StringHeaderCompare(&U6.Message[1][0],"DATA"))
+					{
+						if(Veh.Mode == Auto_Mode)
+						{
+							Veh_UpdateMaxVelocity(&Veh,MPS2RPM(GetValueFromString(&U6.Message[2][0])));
+							GPS_NEO.K = GetValueFromString(&U6.Message[3][0]);
+							GPS_NEO.Step = GetValueFromString(&U6.Message[4][0]);
 							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 						}
 						else
 						{
-							VehStt.Veh_Auto_Flag = Check_NOK;
 							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
 						}
 					}
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"PAUSE"))
-				{
-					VehStt.Veh_Auto_Flag = Check_NOK;
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"BACK"))
-				{
-					if((GPS_NEO.NbOfWayPoints != 0) && (GPS_NEO.Goal_Flag))
+					else if(StringHeaderCompare(&U6.Message[1][0],"SUPDT"))
 					{
+						if(U6.Message[2][0] == '1')
+						{
+							VehStt.GPS_SelfUpdatePosition_Flag = Check_OK;
+							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						}
+						else if(U6.Message[2][0] == '0')
+						{
+							VehStt.GPS_SelfUpdatePosition_Flag = Check_NOK;
+							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						}
+					}
+/*
+					else if(StringHeaderCompare(&U6.Message[1][0],"SCTRL")) // $AUCON,SCTRL,STLEY/PSUIT,CC<CR><LF>
+					{
+						if(StringHeaderCompare(&U6.Message[2][0],"STLEY"))
+						{
+							Veh.Controller = Stanley_Controller;
+						}
+						else if(StringHeaderCompare(&U6.Message[2][0],"PSUIT"))
+						{
+							Veh.Controller = Pursuit_Controller;
+						}
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					}
+*/
+					else
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
+					break;
+				
+				/*---------------- Receive path coordinate -----------------*/
+				case Path_Plan: 
+					if (StringHeaderCompare(&U6.Message[1][0], "STOP"))
+					{
+						VehStt.GPS_Start_Receive_PathCor = Check_NOK;
+						LED_OFF(LED_BLUE_PIN);  // Ket thuc nhan toa do, led off
+						GPS_UpdatePathYaw(&GPS_NEO);
+						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,VPLAN,0"));
+					}
+					else if (StringHeaderCompare(&U6.Message[1][0],"SPLINE"))
+					{
+						GPS_NEO.NbOfWayPoints = (int)GetValueFromString(&U6.Message[2][0]);
+						GPS_NEO.Cor_Index = 0;
+						GPS_NEO.NbOfP = 0; /* set current index of array map */
 						GPS_NEO.Goal_Flag = Check_NOK;
 						VehStt.Veh_Auto_Flag = Check_NOK;
-						Convert_Double_Array(GPS_NEO.Path_X, GPS_NEO.NbOfWayPoints);
-						Convert_Double_Array(GPS_NEO.Path_Y, GPS_NEO.NbOfWayPoints);
-						GPS_NEO.NbOfP = 0;
-						GPS_ClearPathBuffer(&GPS_NEO);
-						GPS_PathPlanning(&GPS_NEO, GPS_NEO.Step);
-						GPS_UpdatePathYaw(&GPS_NEO);
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						VehStt.GPS_Start_Receive_PathCor = Check_OK; 
+						GPS_ClearPathBuffer(&GPS_NEO); 
+						GPS_ClearPathCorBuffer(&GPS_NEO);
+						LED_ON(LED_BLUE_PIN); // Bat dau nhan toa do, led on
+						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,VPLAN,1"));
+					}
+					else if(VehStt.GPS_Start_Receive_PathCor)
+					{
+						GPS_NEO.NbOfP = (int)GetValueFromString(&U6.Message[1][0]);	// Index
+						GPS_NEO.P_X[GPS_NEO.NbOfP] = GetValueFromString(&U6.Message[2][0]); // x
+						GPS_NEO.P_Y[GPS_NEO.NbOfP] = GetValueFromString(&U6.Message[3][0]); // y
+						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,1"));
 					}
 					else
 					{
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,VPLAN,?"));
 					}
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"DATA"))
-				{
-					if(Veh.Mode == Auto_Mode)
+					break;
+					
+				/*--------------- Save data in internal flash memory ---------------*/
+				case Flash_Save:
+					if(StringHeaderCompare(&U6.Message[1][0],"PID"))
 					{
-						Veh_UpdateMaxVelocity(&Veh,MPS2RPM(GetValueFromString(&U6.Message[2][0])));
-						GPS_UpdateParameters(&GPS_NEO,
-							GetValueFromString(&U6.Message[3][0]),
-							GetValueFromString(&U6.Message[4][0]));
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						SaveDataToInternalFlash(1);
 					}
-					else
+					else if(StringHeaderCompare(&U6.Message[1][0],"GPS"))
 					{
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
-					}
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"SUPDT"))
-				{
-					if(U6.Message[2][0] == '1')
-					{
-						VehStt.GPS_SelfUpdatePosition_Flag = Check_OK;
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-					}
-					else if(U6.Message[2][0] == '0')
-					{
-						VehStt.GPS_SelfUpdatePosition_Flag = Check_NOK;
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-					}
-					else 
-					{
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
-					}
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"SCTRL")) // $AUCON,SCTRL,STLEY/PSUIT,CC<CR><LF>
-				{
-					if(StringHeaderCompare(&U6.Message[2][0],"STLEY"))
-					{
-						Veh.Controller = Stanley_Controller;
-					}
-					else if(StringHeaderCompare(&U6.Message[2][0],"PSUIT"))
-					{
-						Veh.Controller = Pursuit_Controller;
+						SaveDataToInternalFlash(2);
 					}
 					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				}
-				else
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
-				break;
-			
-			/*---------------- Receive path coordinate -----------------*/
-			case Path_Plan: 
-/*					
-				if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
-				{
-					VehStt.GPS_Start_Receive_PathCor = Check_NOK;
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-					GPS_PathPlanning(&GPS_NEO,GPS_NEO.Step);
-					GPS_UpdatePathYaw(&GPS_NEO);
-					while(!DMA_GetFlagStatus(DMA2_Stream6,DMA_FLAG_TCIF6)){};
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,VPLAN,1"));
-				}
-*/
-				if (StringHeaderCompare(&U6.Message[1][0], "STOP"))
-				{
-					VehStt.GPS_Start_Receive_PathCor = Check_NOK;
-					LED_OFF(LED_BLUE_PIN);  // Ket thuc nhan toa do, led off
-					GPS_UpdatePathYaw(&GPS_NEO);
-					U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,VPLAN,0"));
-				}
-				else if(VehStt.GPS_Start_Receive_PathCor)
-				{
-					GetMessageInfo((char *)U6_RxBuffer, GPS_NEO.TempBuffer, ',');
-					GPS_NEO.NbOfP = (int)GetValueFromString(&GPS_NEO.TempBuffer[1][0]);	// Index
-					GPS_NEO.P_X[GPS_NEO.NbOfP] = GetValueFromString(&GPS_NEO.TempBuffer[2][0]); // x
-					GPS_NEO.P_Y[GPS_NEO.NbOfP] = GetValueFromString(&GPS_NEO.TempBuffer[3][0]); // y
-					U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,1"));
-				}
-				else if (StringHeaderCompare(&U6.Message[1][0],"SPLINE"))
-				{
-					GPS_NEO.NbOfWayPoints = (int)GetValueFromString(&U6.Message[2][0]);
-					GPS_NEO.Cor_Index = 0;
-					GPS_NEO.NbOfP = 0; /* set current index of array map */
-					GPS_NEO.Goal_Flag = Check_NOK;
-					VehStt.Veh_Auto_Flag = Check_NOK;
-					VehStt.GPS_Start_Receive_PathCor = Check_OK; 
-					GPS_ClearPathBuffer(&GPS_NEO); 
-					GPS_ClearPathCorBuffer(&GPS_NEO);
-					LED_ON(LED_BLUE_PIN); // Bat dau nhan toa do, led on
-					U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,VPLAN,1"));
-				}
-				else
-				{
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,VPLAN,?"));
-				}
-				break;
+					break;
 				
-			/*--------------- Save data in internal flash memory ---------------*/
-			case Flash_Save:
-				if(StringHeaderCompare(&U6.Message[1][0],"PID"))
-				{
-					SaveDataToInternalFlash(1);
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"GPS"))
-				{
-					SaveDataToInternalFlash(2);
-				}
-				U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				break;
-			
-			/*--------------- Save data in internal flash memory --------*/
-			/* Format: $KCTRL,1,max velocity 
-						$KCTRL,0
-						$KCTRL,W,S,A,D,level
-			*/
-			case KeyBoard_Control:
-				if(StringHeaderCompare(&U6.Message[1][0],"START"))
-				{
-					if(Veh.Mode != KeyBoard_Mode)
+				/*--------------- Save data in internal flash memory --------*/
+				/* Format: $KCTRL,1,max velocity 
+							$KCTRL,0
+							$KCTRL,W,S,A,D,level
+				*/
+				case KeyBoard_Control:
+					if(StringHeaderCompare(&U6.Message[1][0],"START"))
 					{
+						if(Veh.Mode != KeyBoard_Mode)
+						{
+							Reset_Motor();
+							Robot_Forward();
+							Veh.Mode = KeyBoard_Mode;
+							Veh_UpdateMaxVelocity(&Veh,MPS2RPM(GetValueFromString(&U6.Message[2][0])));
+						}
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					}
+					else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
+					{
+						Veh.Mode = None_Mode;
 						Reset_Motor();
-						Robot_Forward();
-						Veh.Mode = KeyBoard_Mode;
-						Veh_UpdateMaxVelocity(&Veh,MPS2RPM(GetValueFromString(&U6.Message[2][0])));
-					}
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				}
-				else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
-				{
-					Veh.Mode = None_Mode;
-					Reset_Motor();
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-				}
-				else
-				{
-					if ((U6.Message[1][0] == 'W') && /* W - move forward */
-						(U6.Message[2][0] == '!') && 
-						(U6.Message[3][0] == '!') && 
-						(U6.Message[4][0] == '!'))
-					{
-						Robot_Forward();
-						PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,F"));
-					}
-					else if((U6.Message[1][0] == '!') && /* S - move backward */
-							(U6.Message[2][0] == 'S') && 
-							(U6.Message[3][0] == '!') && 
-							(U6.Message[4][0] == '!'))
-					{
-						Robot_Backward();
-						PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,B"));
-					}
-					else if((U6.Message[1][0] == '!') && /* A - move left */
-							(U6.Message[2][0] == '!') && 
-							(U6.Message[3][0] == 'A') && 
-							(U6.Message[4][0] == '!'))
-					{
-						Robot_AntiClockwise();
-						PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,L"));
-					}
-					else if((U6.Message[1][0] == '!') && /* D - move right */
-							(U6.Message[2][0] == '!') && 
-							(U6.Message[3][0] == '!') && 
-							(U6.Message[4][0] == 'D'))
-					{
-						Robot_Clockwise();
-						PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,R"));
-					}
-					else if((U6.Message[1][0] == 'W') && /* WA - move left+forward */
-							(U6.Message[2][0] == '!') && 
-							(U6.Message[3][0] == 'A') && 
-							(U6.Message[4][0] == '!'))
-					{
-						Robot_Forward();
-						PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						PID_UpdateSetVel(&M2,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
-						U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LF"));
-					}
-					else if((U6.Message[1][0] == 'W') && /* WD - move right+forward */
-							(U6.Message[2][0] == '!') && 
-							(U6.Message[3][0] == '!') && 
-							(U6.Message[4][0] == 'D'))
-					{
-						Robot_Forward();
-						PID_UpdateSetVel(&M1,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
-						PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RF"));
-					}
-					else if((U6.Message[1][0] == '!') && /* SA - move left+backward */
-							(U6.Message[2][0] == 'S') && 
-							(U6.Message[3][0] == 'A') && 
-							(U6.Message[4][0] == '!'))
-					{
-						Robot_Backward();
-						PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-						PID_UpdateSetVel(&M2,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
-						U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LB"));
-					}
-					else if((U6.Message[1][0] == '!') && /* SD - move right+backward */
-							(U6.Message[2][0] == 'S') && 
-							(U6.Message[3][0] == '!') && 
-							(U6.Message[4][0] == 'D'))
-					{
-						Robot_Backward();
-						PID_UpdateSetVel(&M1,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
-						PID_UpdateSetVel(&M2,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity));
-						U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RB"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 					}
 					else
 					{
-						PID_UpdateSetVel(&M1,0);
-						PID_UpdateSetVel(&M2,0);
-						U6_SendData(FeedBack(U6_TxBuffer, (char *)U6_RxBuffer));
+						if ((U6.Message[1][0] == 'W') && /* W - move forward */
+							(U6.Message[2][0] == '!') && 
+							(U6.Message[3][0] == '!') && 
+							(U6.Message[4][0] == '!'))
+						{
+							Robot_Forward();
+							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,F"));
+						}
+						else if((U6.Message[1][0] == '!') && /* S - move backward */
+								(U6.Message[2][0] == 'S') && 
+								(U6.Message[3][0] == '!') && 
+								(U6.Message[4][0] == '!'))
+						{
+							Robot_Backward();
+							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,B"));
+						}
+						else if((U6.Message[1][0] == '!') && /* A - move left */
+								(U6.Message[2][0] == '!') && 
+								(U6.Message[3][0] == 'A') && 
+								(U6.Message[4][0] == '!'))
+						{
+							Robot_AntiClockwise();
+							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,L"));
+						}
+						else if((U6.Message[1][0] == '!') && /* D - move right */
+								(U6.Message[2][0] == '!') && 
+								(U6.Message[3][0] == '!') && 
+								(U6.Message[4][0] == 'D'))
+						{
+							Robot_Clockwise();
+							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,R"));
+						}
+						else if((U6.Message[1][0] == 'W') && /* WA - move left+forward */
+								(U6.Message[2][0] == '!') && 
+								(U6.Message[3][0] == 'A') && 
+								(U6.Message[4][0] == '!'))
+						{
+							Robot_Forward();
+							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M2,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LF"));
+						}
+						else if((U6.Message[1][0] == 'W') && /* WD - move right+forward */
+								(U6.Message[2][0] == '!') && 
+								(U6.Message[3][0] == '!') && 
+								(U6.Message[4][0] == 'D'))
+						{
+							Robot_Forward();
+							PID_UpdateSetVel(&M1,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
+							PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RF"));
+						}
+						else if((U6.Message[1][0] == '!') && /* SA - move left+backward */
+								(U6.Message[2][0] == 'S') && 
+								(U6.Message[3][0] == 'A') && 
+								(U6.Message[4][0] == '!'))
+						{
+							Robot_Backward();
+							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M2,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LB"));
+						}
+						else if((U6.Message[1][0] == '!') && /* SD - move right+backward */
+								(U6.Message[2][0] == 'S') && 
+								(U6.Message[3][0] == '!') && 
+								(U6.Message[4][0] == 'D'))
+						{
+							Robot_Backward();
+							PID_UpdateSetVel(&M1,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
+							PID_UpdateSetVel(&M2,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity));
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RB"));
+						}
+						else
+						{
+							PID_UpdateSetVel(&M1,0);
+							PID_UpdateSetVel(&M2,0);
+							U6_SendData(FeedBack(U6_TxBuffer, (char *)message));
+						}
 					}
-				}
-				Veh_CheckStateChange(&M1, GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M1));
-				Veh_CheckStateChange(&M2, GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M2));
-				break;
+					Veh_CheckStateChange(&M1, GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M1));
+					Veh_CheckStateChange(&M2, GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M2));
+					break;
+			} // end switch command
+		} // end Veh_SplitMsg
+		else 
+		{
+			U6_SendData(FeedBack(U6_TxBuffer,"$WRONG_CKSUM")); 
 		}
-	}
-	else // Rx Buffer wrong checksum
-	{
-		U6_SendData(FeedBack(U6_TxBuffer,"$WRONG_CKSUM")); 
-	}
-	DMA_Cmd(DMA2_Stream2,ENABLE);
+	} // end get_message_flag
+	DMA_Cmd(DMA2_Stream2, ENABLE);
 }
 /** ----------------------------------------------------------- **/
 /** ----------------------------------------------------------- **/

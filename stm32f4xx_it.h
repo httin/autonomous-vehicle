@@ -51,14 +51,23 @@ void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void); // System Timer Interrupt
 
+/***** Queue for RX buffer *****/
+#define RX_QUEUE_SIZE 200
+
+struct queue 
+{
+  uint8_t buffer[RX_QUEUE_SIZE];
+  int front;
+};
+
 /***** Alternate Function Interrupt *****/
 void USART1_IRQHandler(void);
 void DMA2_Stream5_IRQHandler(void); // USART1 RX - IMU vs VXL
 
 void USART2_IRQHandler(void);
-void DMA1_Stream5_IRQHandler(void); // USART2 RX - Lora GPS vs Lora VXL
+void DMA1_Stream5_IRQHandler(void); // USART2 RX - Rover GPS vs VXL
 
-void USART6_IRQHandler(void); // 19200
+void USART6_IRQHandler(void); 
 void DMA2_Stream2_IRQHandler(void); // USART6 RX - Lora PC vs Lora VXL
 
 void TIM3_IRQHandler(void); // Overflow encoder interrupt
@@ -68,7 +77,6 @@ void TIM5_IRQHandler(void); // Interrupt for IMU calibration
 
 extern void StartTimer(TIM_TypeDef *TIMx, uint32_t DelayTime);
 extern void StopTimer(TIM_TypeDef *TIMx);
-void GetVehicleVelocity(void);
 void SaveDataToInternalFlash(int key);
 //#ifdef __cplusplus
 //}
