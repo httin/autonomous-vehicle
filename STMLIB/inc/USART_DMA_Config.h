@@ -15,8 +15,8 @@
 /*-------- Hardware config USART2 (can change) ---------
  * @brief:	Baudrate 9600
  *			Used to communicate between LORA-GPS & LORA-BASE
- * @pinout:	PD5: TX -> RX Lora-ROVER 
- *			PD6: RX -> TX Lora-ROVER
+ * @pinout:	PD5: TX -> RX ROVER-GPS 
+ *			PD6: RX -> TX ROVER-GPS
  */
 #define 	U2_GPIOx						GPIOD
 #define 	U2_GPIO_Pin_Tx        			GPIO_Pin_5
@@ -39,17 +39,14 @@
 /* Types */
 
 /* Export variables */
-#define MAX_LORA_BUFFERSIZE	58
-
-#define USART1_BUFFERSIZE_RX 20
-#define USART1_BUFFERSIZE_TX 100
+#define USART1_IMU_TX 20
+#define USART1_IMU_RX 100
 extern 		uint8_t 	U1_TxBuffer[20], U1_RxBuffer[100];
-#define USART2_BUFFERSIZE_RX 200
-#define USART2_BUFFERSIZE_TX 5
-extern 		uint8_t		U2_TxBuffer[USART2_BUFFERSIZE_TX], U2_RxBuffer[USART2_BUFFERSIZE_RX];
-#define USART6_BUFFERSIZE_RX 200
-#define USART6_BUFFERSIZE_TX 200
-extern 		uint8_t 	U6_TxBuffer[USART6_BUFFERSIZE_TX], U6_RxBuffer[USART6_BUFFERSIZE_RX];
+#define USART2_ROVER_RX 200
+#define USART2_ROVER_TX 5
+extern 		uint8_t		U2_TxBuffer[USART2_ROVER_TX], U2_RxBuffer[USART2_ROVER_RX];
+#define MAX_LORA_BUFFERSIZE	58
+extern 		uint8_t 	U6_TxBuffer[MAX_LORA_BUFFERSIZE + 1], U6_RxBuffer[MAX_LORA_BUFFERSIZE + 1]; // +1 for NULL-terminated
 /* Export Function */
 void 	USART1_Config(uint32_t  BaudRate);
 void 	USART2_Config(uint32_t  BaudRate);

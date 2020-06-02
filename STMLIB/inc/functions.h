@@ -1,12 +1,12 @@
-#include "stm32f4xx.h"
 #include <math.h>
+#include "stm32f4xx.h"
 
 #define    SYSTICK_INTERRUPT_1MS 1000
 #define    SAMPLE_TIME_50MS 50
 #define    SEND_TIME_1S 1000
 
-#define    MESSAGE_ROW 20
-#define    MESSAGE_COL 30
+#define    MESSAGE_ROW 15
+#define    MESSAGE_COL 20
 #define    MAX_LORA_BUFFERSIZE 58
 /********************************************************************
  *							Define Enum 							*
@@ -85,7 +85,7 @@ typedef struct Status{
 	enum_Status			GPS_Start_Receive_PathCor;	// 13. Starting receive map coordinate from C#
 	enum_Status			GPS_SelfUpdatePosition_Flag;// 14.
 	enum_Status			GPS_FirstGetPosition;		// 15.
-}Status;
+} Status;
 
 typedef struct Error{
 	uint8_t			Error_Buffer[20];	/* enum_Error Code */
@@ -181,7 +181,6 @@ typedef struct GPS{
 	int	        NbOfP;
 	int         Cor_Index;
 	/* Buffer read and write data */
-	char        TempBuffer[MESSAGE_ROW][MESSAGE_COL];
 	double      Path_X[20];
 	double      Path_Y[20];
 #define MAX_NUM_COORDINATE 1000
@@ -218,22 +217,22 @@ typedef struct FlashMemory{
 	uint8_t		ReadOutBuffer[500];
 	uint8_t		WriteInBuffer[500];
 	int			Length;
-	char  		Message[20][30];
+	char  		Message[MESSAGE_ROW][MESSAGE_COL];
 } FlashMemory;
 
-#define						pi							(double)3.14159265358979
-#define  					K1 										1/(2*pi)
-#define						K2										4/pi
-#define						K3										1
-#define						Wheel_Radius 							0.085
-#define						IMU_AngleIndex							17
-#define						FLASH_ProgramType_Byte					VoltageRange_1
-#define						FLASH_ProgramType_HalfWord				VoltageRange_2
-#define						FLASH_ProgramType_Word					VoltageRange_3
-#define						FLASH_ProgramType_DoubleWord			VoltageRange_4
-#define						FLASH_PIDPara_BaseAddr 					0x08060000	// (4 KBytes) (0x08060000 - 0x08060FFF)
-#define						FLASH_FuzPara_BaseAddr					0x08061000	// (4 Kbytes) (0x08061000 - 0x08061FFF)
-#define						FLASH_GPSPara_BaseAddr					0x08040000	// (128 KBytes) 
+#define					pi							(double)3.14159265358979
+#define  				K1 										1/(2*pi)
+#define					K2										4/pi
+#define					K3										1
+#define					Wheel_Radius 							0.085
+#define					IMU_AngleIndex							17
+#define					FLASH_ProgramType_Byte					VoltageRange_1
+#define					FLASH_ProgramType_HalfWord				VoltageRange_2
+#define					FLASH_ProgramType_Word					VoltageRange_3
+#define					FLASH_ProgramType_DoubleWord			VoltageRange_4
+#define					FLASH_PIDPara_BaseAddr 					0x08060000	// (4 KBytes) (0x08060000 - 0x08060FFF)
+#define					FLASH_FuzPara_BaseAddr					0x08061000	// (4 Kbytes) (0x08061000 - 0x08061FFF)
+#define					FLASH_GPSPara_BaseAddr					0x08040000	// (128 KBytes) 
 /* Control Led Macros */
 #define LED_RED_PIN      GPIO_Pin_14
 #define LED_GREEN_PIN    GPIO_Pin_12
@@ -280,7 +279,8 @@ void					Veh_ParametersInit(Vehicle *pveh);
 void					Veh_UpdateVehicleFromKey(Vehicle *pveh);
 void					Veh_CheckStateChange(DCMotor *ipid, uint8_t State);
 #define 				Veh_UpdateMaxVelocity(pveh, MaxVelocity)	(pveh)->Max_Velocity = (MaxVelocity);
-enum_Error              Veh_RxBufToMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL]);
+enum_Error              Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL]);
+enum_Command            Veh_MsgToCmd(char *);
 /*------------ PID Function ----------------------*/
 void 					PID_SavePIDParaToFlash(FlashMemory *pflash, DCMotor *M1, DCMotor *M2);
 void 					PID_Compute(DCMotor *ipid);
@@ -295,7 +295,6 @@ double                  GetValueFromString(char *value);
 uint8_t	                LRCCalculate(uint8_t *pBuffer, int length);
 enum_Status             IsCorrectMessage(uint8_t *inputmessage, int length, uint8_t byte1, uint8_t byte2);
 enum_Status             StringHeaderCompare(char *s1, char header[]);
-enum_Command            MsgToCmd(char *);
 int                     FeedBack(uint8_t *outputmessage, char inputstring[20]);
 /*--------Stanley functions and GPS --------------*/
 void                    GPS_ParametersInit(GPS *pgps);
@@ -308,9 +307,7 @@ void                    GPS_GetLonFromString(GPS *pgps, char *inputmessage);
 void                    GPS_ClearPathBuffer(GPS *pgps);
 void                    GPS_ClearPathCorBuffer(GPS *pgps);
 void                    GPS_UpdatePathYaw(GPS *pgps);
-void                    GPS_UpdatePathCoordinate(GPS *pgps, uint8_t *inputmessage);
 void                    GPS_SavePathCoordinateToFlash(GPS *pgps, FlashMemory *pflash);
-void                    GPS_UpdateParameters(GPS *pgps, double K, double Step);
 void                    GPS_UpdateCoordinateXY(GPS *pgps, double Cor_X, double Cor_Y);
 void                    GPS_PathPlanning(GPS *pgps, float Step);
 enum_Status	            GPS_HeaderCompare(uint8_t *s1, char Header[5]);

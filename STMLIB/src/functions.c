@@ -26,7 +26,7 @@ void	Error_AppendError(Error *perror, enum_Error err)
 void	Status_ParametersInit(Status *pStatus)
 {
 	/* VehStt is initialized as a global variable, so all members were 0 */
-	pStatus->Veh_SendData_Flag = Check_OK;
+	pStatus->Veh_SendData_Flag = Check_NOK;
 }
 
 /** @brief  : Function compute PID value 
@@ -179,9 +179,9 @@ void	Veh_UpdateVehicleFromKey(Vehicle *pveh)
 	pveh->ManualCtrlKey = 0;
 }
 
-enum_Error	Veh_RxBufToMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL])
+enum_Error	Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL])
 {
-	int length = LengthOfLine(inputmessage); // Ex: "ab,cd\r\n" -> length = 5, "ab,cd\0" -> length = 5
+	int length = LengthOfLine(inputmessage); // Ex: "$ab,cd\r\n" -> length = 6, "$ab,cd\0" -> length = 6
 	if(IsCorrectMessage((uint8_t*)&inputmessage[1], length - 3, inputmessage[length - 2], inputmessage[length - 1]))
 	{
 		GetMessageInfo((char*)inputmessage, result, ',');
@@ -215,8 +215,8 @@ void GetMessageInfo(char *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL], c
 		for(int j = 0; (j < MESSAGE_COL) && (result[i][j] != 0); ++j)
 			result[i][j] = 0;
 
-	
-	while((inputmessage[index] != 0x0D) && (inputmessage[index + 1] != 0x0A) && (inputmessage[index] != 0) && (index < 200))
+	while(	(inputmessage[index] != 0x0D) && (inputmessage[index + 1] != 0x0A) 
+			&& (inputmessage[index] != 0) && (index < 100))
 	{
 		if(inputmessage[index] != character)
 		{
@@ -392,10 +392,7 @@ enum_Status IsCorrectMessage(uint8_t *inputmessage, int length, uint8_t byte1, u
 	c2 = CheckSum & 0x0F;
 	c1 = ToHex(c1);
 	c2 = ToHex(c2);
-	if((c1 == byte1) && (c2 == byte2))
-		return Check_OK;
-	else
-		return Check_NOK;
+	return ((c1 == byte1) && (c2 == byte2)) ? Check_OK : Check_NOK;
 }
 
 /** @brief  : Compare 2 input string
@@ -418,7 +415,7 @@ enum_Status StringHeaderCompare(char *s, char *ref)
 **  @agr    : Input message
 **  @retval : None 
 **/
-enum_Command	MsgToCmd(char *U6_message)
+enum_Command	Veh_MsgToCmd(char *U6_message)
 {
 	if(StringHeaderCompare(U6_message, "$VEHCF"))      
 		return Vehicle_Config;
@@ -631,31 +628,6 @@ void GPS_UpdatePathYaw(GPS *pgps)
 		pgps->P_Yaw[i] = atan2(pgps->P_Y[i + 1] - pgps->P_Y[i], pgps->P_X[i + 1] - pgps->P_X[i]);
 	}
 	pgps->P_Yaw[pgps->NbOfP - 1] = pgps->P_Yaw[pgps->NbOfP - 2];
-}
-
-/** @brief  : GPS updates path coordinate from PC format message includes: pathx, pathy and pathyaw
-**  @agr    : GPS and inputmessage
-**  @retval : none
-**/
-void GPS_UpdatePathCoordinate(GPS *pgps, uint8_t *inputmessage)
-{
-	GetMessageInfo( (char *)inputmessage, pgps->TempBuffer, ',');
-	pgps->Latitude 			= GetValueFromString(&pgps->TempBuffer[1][0]);
-	pgps->Longitude			= GetValueFromString(&pgps->TempBuffer[2][0]);
-	GPS_LatLonToUTM(pgps);
-	pgps->Path_X[pgps->NbOfWayPoints] = pgps->CorX;	
-	pgps->Path_Y[pgps->NbOfWayPoints] = pgps->CorY;
-	pgps->NbOfWayPoints++;
-}
-
-/** @brief  : GPS update K and Step
-**  @agr    : GPS, K and Step
-**  @retval : none
-**/
-void	GPS_UpdateParameters(GPS *pgps, double K, double Step)
-{
-	pgps->K = K;
-	pgps->Step = Step;
 }
 
 /** @brief  : GPS over write GPS coordinate

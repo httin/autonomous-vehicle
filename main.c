@@ -67,11 +67,11 @@ void GPS_ReadParametersFromFlash(FlashMemory *pflash, GPS *pgps)
 	pgps->NbOfWayPoints = GetValueFromString(&Flash.Message[0][0]);
 	for(int i = 0; i < pgps->NbOfWayPoints; i++)
 	{
-		pgps->Latitude 			= GetValueFromString(&Flash.Message[i * 2 + 1][0]);
-		pgps->Longitude			= GetValueFromString(&Flash.Message[i * 2 + 2][0]);
+		pgps->Latitude 	= GetValueFromString(&Flash.Message[i * 2 + 1][0]);
+		pgps->Longitude	= GetValueFromString(&Flash.Message[i * 2 + 2][0]);
 		GPS_LatLonToUTM(pgps);
-		pgps->Path_X[i]			= pgps->CorX;
-		pgps->Path_Y[i]			= pgps->CorY;
+		pgps->Path_X[i]	= pgps->CorX;
+		pgps->Path_Y[i]	= pgps->CorY;
 	}
 	GPS_UpdatePathYaw(pgps);
 }
@@ -298,6 +298,20 @@ void GPS_StanleyCompute()
 	}
 }
 
+static void GetVehicleVelocity(void)
+{
+	M1.Current_Vel = (GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M1) == 0) ? 
+		(((double)((M1.Enc + (M1.OverFlow - 1) * 65535) - M1.PreEnc)/ 39400) * 60) / Timer.T : // Backward up counting
+		(((double)(((65535 - M1.Enc) + (M1.OverFlow - 1) * 65535) - (65535 - M1.PreEnc))/ 39400) * 60) / Timer.T; // Front down
+
+	M1.Current_Vel = (M1.Current_Vel < 0) ? 0 : M1.Current_Vel;
+			
+	M2.Current_Vel = (GPIO_ReadOutputDataBit(Dir_GPIOx,Dir_GPIO_Pin_M2) == 0) ? 
+		(((double)((M2.Enc + (M2.OverFlow - 1) * 65535) - M2.PreEnc)/ 39400) * 60) / Timer.T :
+		(((double)(((65535 - M2.Enc) + (M2.OverFlow - 1) * 65535) - (65535 - M2.PreEnc))/ 39400) * 60) / Timer.T;
+
+	M2.Current_Vel = (M2.Current_Vel < 0) ? 0 : M2.Current_Vel;
+}
 /************************************************************************
 ************************ Initialization Functions ***********************
 *************************************************************************/
@@ -344,8 +358,8 @@ static void Peripheral_Config(void)
 	Led_Init();
 	TimerInterruptConfig(TIM5);
 	USART1_Config(115200);	//IMU vs VXL
-	USART2_Config(9600); 	//GPS USART first priority 
-	USART6_Config(19200); 	//Sending and controlling USART1
+	USART2_Config(9600); 	//
+	USART6_Config(19200); 	
 	Encoder_Config();				
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 }
