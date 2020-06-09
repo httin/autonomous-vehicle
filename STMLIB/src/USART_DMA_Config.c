@@ -6,8 +6,8 @@ USART_InitTypeDef							US_USART_Struct;
 NVIC_InitTypeDef							US_NVIC_Struct;
 
 /* Variables */
-uint8_t 						U1_TxBuffer[20], U1_RxBuffer[100];
-uint8_t							U2_TxBuffer[USART2_ROVER_TX], U2_RxBuffer[USART2_ROVER_RX];
+uint8_t 						U1_TxBuffer[IMU_TX_BUFFERSIZE], U1_RxBuffer[IMU_RX_BUFFERSIZE];
+uint8_t							U2_TxBuffer[ROVER_TX_BUFFERSIZE], U2_RxBuffer[ROVER_RX_BUFFERSIZE];
 uint8_t							U6_TxBuffer[MAX_LORA_BUFFERSIZE + 1], U6_RxBuffer[MAX_LORA_BUFFERSIZE + 1];
 /*----- USART1 configuration ---------*/
 void USART1_Config(uint32_t  BaudRate)
@@ -48,7 +48,7 @@ void USART1_Config(uint32_t  BaudRate)
 
 	// Config DMA USART Tx
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_4;
-	US_DMA_Struct.DMA_BufferSize         = 20;
+	US_DMA_Struct.DMA_BufferSize         = IMU_TX_BUFFERSIZE;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
 	US_DMA_Struct.DMA_DIR                = DMA_DIR_MemoryToPeripheral;
 	US_DMA_Struct.DMA_Memory0BaseAddr    = (uint32_t)&U1_TxBuffer;
@@ -65,7 +65,7 @@ void USART1_Config(uint32_t  BaudRate)
 	DMA_Init(DMA2_Stream7, &US_DMA_Struct);
 	//-----------Config DMA USART Rx------------------
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_4;
-	US_DMA_Struct.DMA_BufferSize         = 100;
+	US_DMA_Struct.DMA_BufferSize         = IMU_RX_BUFFERSIZE;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
 	US_DMA_Struct.DMA_DIR                = DMA_DIR_PeripheralToMemory;
 	US_DMA_Struct.DMA_Memory0BaseAddr    = (uint32_t)&U1_RxBuffer;
@@ -130,7 +130,7 @@ void USART2_Config(uint32_t  BaudRate)
 	
 	//--------Config DMA USART Tx----------
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_4;
-	US_DMA_Struct.DMA_BufferSize         = USART2_ROVER_TX;
+	US_DMA_Struct.DMA_BufferSize         = ROVER_TX_BUFFERSIZE;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
 	US_DMA_Struct.DMA_DIR                = DMA_DIR_MemoryToPeripheral;
 	US_DMA_Struct.DMA_Memory0BaseAddr    = (uint32_t)&U2_TxBuffer;
@@ -147,7 +147,7 @@ void USART2_Config(uint32_t  BaudRate)
 	DMA_Init(DMA1_Stream6, &US_DMA_Struct);
 	//-----------Config DMA USART Rx------------------
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_4;
-	US_DMA_Struct.DMA_BufferSize         = USART2_ROVER_RX;
+	US_DMA_Struct.DMA_BufferSize         = ROVER_RX_BUFFERSIZE;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
 	US_DMA_Struct.DMA_DIR                = DMA_DIR_PeripheralToMemory;
 	US_DMA_Struct.DMA_Memory0BaseAddr    = (uint32_t)&U2_RxBuffer;

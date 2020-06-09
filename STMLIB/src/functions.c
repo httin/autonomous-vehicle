@@ -188,7 +188,7 @@ enum_Error	Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_
 		return Veh_NoneError;
 	}
 	else
-		return Veh_CommandMessageCheckSum_Err;
+		return LORA_WrongCheckSum;
 }
 
 void	Veh_CheckStateChange(DCMotor *ipid, uint8_t State)
@@ -448,7 +448,7 @@ enum_Command	Veh_MsgToCmd(char *U6_message)
 int FeedBack(uint8_t *outputmessage, char inputstring[MAX_LORA_BUFFERSIZE])
 {
 	int i = 0;
-	while(inputstring[i] != 0 && (i < MAX_LORA_BUFFERSIZE - 2))
+	while(inputstring[i] != 0)
 	{
 		outputmessage[i] = inputstring[i];
 		++i;
@@ -575,20 +575,6 @@ void GPS_LatLonToUTM(GPS *pgps)
 	}
 }
 
-/** @brief  : Convert lattitude and longtitude value into Degree
-**  @agr    : Lattitude value
-**  @retval : Degree value
-**/
-double GPS_LLToDegree(double LL)
-{
-	double degree, minute, temp;
-	degree = (int)(LL / 100);
-	temp = (double)(degree * 100);
-	minute = LL - temp;
-	minute = minute / 60;
-	return (degree +  minute);
-}
-
 /** @brief  : Initial value for GPS functions
 **  @agr    : input
 **  @retval : Return fix value
@@ -660,6 +646,20 @@ void GPS_SavePathCoordinateToFlash(GPS *pgps, FlashMemory *pflash)
 	WriteToFlash(pflash,FLASH_Sector_6,FLASH_GPSPara_BaseAddr);
 }
 
+/** @brief  : Convert lattitude and longtitude value into Degree
+**  @agr    : Lattitude value
+**  @retval : Degree value
+**/
+double GPS_LLToDegree(double LL)
+{
+	double degree, minute, temp;
+	degree = (int)(LL / 100);
+	temp = (double)(degree * 100);
+	minute = LL - temp;
+	minute = minute / 60;
+	return (degree +  minute);
+}
+
 /** @brief  : Function get lat lon value from GNGLL message
 **  @agr    : String value received from message
 **  @retval : Value
@@ -683,22 +683,6 @@ void GPS_GetLatFromString(GPS *pgps, char *inputmessage)
 	pgps->Latitude = GPS_LLToDegree(s1 + s2);
 }
 
-void GPS_ClearPathCorBuffer(GPS *pgps)
-{
-	for(int i = 0; i < 20; ++i)
-	{
-		pgps->Path_X[i] = pgps->Path_Y[i] = 0;
-	}
-}
-
-void GPS_ClearPathBuffer(GPS *pgps)
-{
-	for(int i = 0; i < MAX_NUM_COORDINATE; ++i)
-	{
-		pgps->P_X[i] = pgps->P_Y[i] = pgps->P_Yaw[i] = 0;
-	}
-}
-
 /** @brief  : Function get lat lon value from GNGLL message
 **  @agr    : String value received from message
 **  @retval : Value
@@ -715,6 +699,22 @@ void GPS_GetLonFromString(GPS *pgps, char *inputmessage)
 	}
 	s2 /= 100000;
 	pgps->Longitude = GPS_LLToDegree(s1 + s2);
+}
+
+void GPS_ClearPathCorBuffer(GPS *pgps)
+{
+	for(int i = 0; i < 20; ++i)
+	{
+		pgps->Path_X[i] = pgps->Path_Y[i] = 0;
+	}
+}
+
+void GPS_ClearPathBuffer(GPS *pgps)
+{
+	for(int i = 0; i < MAX_NUM_COORDINATE; ++i)
+	{
+		pgps->P_X[i] = pgps->P_Y[i] = pgps->P_Yaw[i] = 0;
+	}
 }
 
 void GPS_PathPlanning(GPS *pgps, float Step)
@@ -912,15 +912,15 @@ enum_Status	GPS_HeaderCompare(uint8_t *s1, char Header[5])
 enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSAGE_ROW][MESSAGE_COL])
 {
 	int Message_Index = 0, GxGLL_Index = 0, GxGGA_Index = 0, Length = 0;
-	while(inputmessage[Message_Index] != 0)
+	while(inputmessage[Message_Index] != 0 && (Message_Index < ROVER_RX_BUFFERSIZE))
 	{
+		/* Because GxGGA come before GxGLL */
 		if(inputmessage[Message_Index] == (uint8_t)'$')
 		{
 			if( (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGGA")) || 
 				(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGGA")) )
 			{
 				GxGGA_Index = Message_Index;
-				Message_Index++;
 			}
 			else if( (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGLL")) ||
 					 (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGLL")) )
@@ -928,14 +928,8 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 				GxGLL_Index = Message_Index;
 				break;
 			}
-			else Message_Index++;
-		} else 
-			Message_Index++;
-
-		if(Message_Index >= MESSAGE_ROW * MESSAGE_COL)
-		{
-			return Veh_ReadMessage_Err;
 		}
+		++Message_Index;
 	}
 
 	if(GxGLL_Index != 0)
@@ -947,10 +941,11 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 			inputmessage[GxGLL_Index + Length - 2], 
 			inputmessage[GxGLL_Index + Length - 1]) )
 		{
-			if(result[6][0] == 'A') // check valid data
+			if(result[6][0] == 'A') // Block STATUS, 'A': data valid, 'V': data not valid
 			{
-				GPS_GetLatFromString(&GPS_NEO, &result[1][0]);
-				GPS_GetLonFromString(&GPS_NEO, &result[3][0]);
+				// Latitude range is from 0 to 90 and longitude is range from 0 to 180.
+				GPS_GetLatFromString(&GPS_NEO, &result[1][0]); // Latitude in ddmm.mmmm format
+				GPS_GetLonFromString(&GPS_NEO, &result[3][0]); // Longitude in dddmm.mmmm format
 				GPS_LatLonToUTM(&GPS_NEO);
 			} else 
 				return Veh_InvalidGxGLLMessage_Err;
@@ -1400,7 +1395,11 @@ void	IMU_UpdateFuzzyCoefficients(IMU *pimu, double Ke, double Kedot, double Ku)
 }
 
 /** @brief  : Get data from IMU message, update IMU angle
-**  @agr    : struct IMU, inputmessage
+**  @agr    : 
+**      @pimu: instance of struct IMU
+**      @inputmessage: USART 2 RX BUFFER, contain information receiving from IMU
+**          format "0x0A |roll |pitch |yaw |0x0D"
+**          unit of angle: mdeg
 **  @retval : Output value
 **/
 enum_Error IMU_GetValueFromMessage(IMU *pimu, uint8_t *inputmessage)
@@ -1415,34 +1414,16 @@ enum_Error IMU_GetValueFromMessage(IMU *pimu, uint8_t *inputmessage)
 			temp /= 10;
 		}
 		Angle /= 1000;
-		if(inputmessage[IMU_AngleIndex] == (uint8_t)' ') pimu->Angle = Angle;
-		else pimu->Angle = -Angle;
+		
+		pimu->Angle = (inputmessage[IMU_AngleIndex] == (uint8_t)' ') ? Angle : -Angle;
+		return Veh_NoneError;
 	}
 	else
 	{
-		pimu->Angle = 0;
-		return Veh_IMUWrongMessage_Err;
+		pimu->Angle = pimu->Pre_Angle;
+		return IMU_WrongMessage;
 	}
-	return Veh_NoneError;
 }
-
-/** @brief  : Copy IMU message to TX buffer 
-**  @agr    : input and output message
-**  @retval : Length
-**/
-int IMU_GetCommandMessage(char *inputmessage, uint8_t *outputmessage)
-{
-	int i = 0;
-	while(inputmessage[i] != 0)
-	{
-		outputmessage[i] = (uint8_t)inputmessage[i];
-		i++;
-	}
-	outputmessage[i++] = 0x0D;
-	outputmessage[i++] = 0x0A;
-	return i;
-}
-
 
 /*---------------- Read / Write Flash Memory Functions -----------------*/
 /** @brief  : Convert 4 bytes (in char) to a Word data in order to save in flash memory

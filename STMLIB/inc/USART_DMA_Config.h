@@ -1,3 +1,6 @@
+#ifndef USART_DMA_CONFIG_H
+#define USART_DMA_CONFIG_H
+
 #include "stm32f4xx.h"
 
 /*-------- Hardware config USART1 (can change) ---------
@@ -6,6 +9,7 @@
  * @pinout: PA9: TX -> RX IMU
  *			PA10: RX -> TX IMU
  */
+#define		U1_Baudrate						115200
 #define 	U1_GPIOx						GPIOA
 #define 	U1_GPIO_Pin_Tx        			GPIO_Pin_9
 #define 	U1_GPIO_Pin_Rx					GPIO_Pin_10
@@ -18,6 +22,7 @@
  * @pinout:	PD5: TX -> RX ROVER-GPS 
  *			PD6: RX -> TX ROVER-GPS
  */
+#define		U2_Baudrate						115200
 #define 	U2_GPIOx						GPIOD
 #define 	U2_GPIO_Pin_Tx        			GPIO_Pin_5
 #define 	U2_GPIO_Pin_Rx					GPIO_Pin_6
@@ -30,6 +35,7 @@
  * @pinout: PC6: TX -> RX Lora-MCU
  *			PC7: RX -> TX Lora-MCU 	
  */
+#define		U6_Baudrate						19200
 #define 	U6_GPIOx						GPIOC
 #define 	U6_GPIO_Pin_Tx        			GPIO_Pin_6
 #define 	U6_GPIO_Pin_Rx					GPIO_Pin_7
@@ -39,12 +45,12 @@
 /* Types */
 
 /* Export variables */
-#define USART1_IMU_TX 20
-#define USART1_IMU_RX 100
-extern 		uint8_t 	U1_TxBuffer[20], U1_RxBuffer[100];
-#define USART2_ROVER_RX 200
-#define USART2_ROVER_TX 5
-extern 		uint8_t		U2_TxBuffer[USART2_ROVER_TX], U2_RxBuffer[USART2_ROVER_RX];
+#define IMU_TX_BUFFERSIZE 20
+#define IMU_RX_BUFFERSIZE 100
+extern 		uint8_t 	U1_TxBuffer[IMU_TX_BUFFERSIZE], U1_RxBuffer[IMU_RX_BUFFERSIZE];
+#define ROVER_TX_BUFFERSIZE 1
+#define ROVER_RX_BUFFERSIZE 500
+extern 		uint8_t		U2_TxBuffer[ROVER_TX_BUFFERSIZE], U2_RxBuffer[ROVER_RX_BUFFERSIZE];
 #define MAX_LORA_BUFFERSIZE	58
 extern 		uint8_t 	U6_TxBuffer[MAX_LORA_BUFFERSIZE + 1], U6_RxBuffer[MAX_LORA_BUFFERSIZE + 1]; // +1 for NULL-terminated
 /* Export Function */
@@ -55,3 +61,5 @@ void 	USART6_Config(uint32_t  BaudRate);
 void 	U1_SendData(uint16_t NbOfByte);
 void 	U2_SendData(uint16_t NbOfByte);	// U2 send nothing, doesn't use
 void 	U6_SendData(uint16_t NbOfByte);
+
+#endif

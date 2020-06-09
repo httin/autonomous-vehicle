@@ -1,5 +1,9 @@
+#ifndef FUNCTIONS_H
+#define FUNCTIONS_H
+
 #include <math.h>
 #include "stm32f4xx.h"
+#include "USART_DMA_Config.h"
 
 #define    SYSTICK_INTERRUPT_1MS 1000
 #define    SAMPLE_TIME_50MS 50
@@ -19,7 +23,6 @@ typedef enum
 
 typedef enum{
 	Veh_NoneError = 0,
-	Veh_ReadMessage_Err,        	// Over flow RX buffer (U1, U2, U6)
 
 	Veh_ReadGxGLLMessage_Err,		// GPS
 	Veh_ReadGxGGAMessage_Err,		// GPS
@@ -27,8 +30,8 @@ typedef enum{
 	Veh_GxGGACheckSum_Err,			// GPS: GxGGA Checksum Error
 	Veh_InvalidGxGLLMessage_Err,	// GPS
 
-	Veh_CommandMessageCheckSum_Err, // Lora: message was received from PC is wrong
-	Veh_IMUWrongMessage_Err,	// IMU: Receive wrong message format, see IMU_GetValueFromMessage()
+	LORA_WrongCheckSum, // Lora: message was received from PC is wrong
+	IMU_WrongMessage,  // IMU: Receive wrong message format, see IMU_GetValueFromMessage()
 }enum_Error;
 
 /****** COMMAND FROM PC ******/
@@ -61,10 +64,12 @@ typedef enum{
 }enum_Mode;
 
 typedef enum{
-	Invalid = 0,
-	RTK_Fixed = 4,
-	RTK_Float = 5,
-	Dead = 6,
+	Invalid        = 0,
+	Mode_2D_3D     = 1,
+	DGNSS          = 2,
+	Fixed_RTK      = 4,
+	Float_RTK      = 5,
+	Dead_Reckoning = 6,
 }enum_GPS;
 
 /********************************************************************
@@ -332,3 +337,5 @@ enum_Error              IMU_GetValueFromMessage(IMU *pimu, uint8_t *inputmessage
 void                    WriteToFlash(FlashMemory *pflash, uint32_t FLASH_Sector, uint32_t FLASH_BaseAddr);
 void                    ReadFromFlash(FlashMemory *pflash, uint32_t FLASH_BaseAddr);
 void                    EraseMemory(uint32_t Flash_Sector);
+
+#endif

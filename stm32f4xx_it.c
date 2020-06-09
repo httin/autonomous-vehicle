@@ -140,7 +140,7 @@ void PendSV_Handler(void)
 /*C,0.3,0,0.8,0.5,0.001,0.8,0.3,0.001*/
 uint8_t temp;
 struct queue u6_queue;
-uint8_t message[100]; // a message ends up with "\r\n"
+uint8_t u6_message[100]; // a message ends up with "\r\n"
 uint8_t get_message_flag; // set when receive "\r\n" indicating we get a full message to handle
 
 /**
@@ -266,7 +266,7 @@ void DMA1_Stream5_IRQHandler(void)
 		VehStt.GPS_Coordinate_Reveived = Check_OK;
 		VehStt.GPS_ValidGPS = Check_OK;
 
-		if((GPS_NEO.GPS_Quality == RTK_Fixed) && (GPS_NEO.GPS_Quality == RTK_Float))
+		if((GPS_NEO.GPS_Quality == Fixed_RTK) && (GPS_NEO.GPS_Quality == Float_RTK))
 		{
 			if(!VehStt.GPS_FirstGetPosition)
 			{
@@ -329,7 +329,7 @@ void DMA2_Stream2_IRQHandler(void)
 			u6_queue.buffer[u6_queue.front++] = U6_RxBuffer[index];
 			for (; i < u6_queue.front; ++i)
 			{
-				message[i] = u6_queue.buffer[i];
+				u6_message[i] = u6_queue.buffer[i];
 			}
 			u6_queue.front = 0;
 			get_message_flag = 1;
@@ -343,7 +343,7 @@ void DMA2_Stream2_IRQHandler(void)
 	if(get_message_flag)
 	{
 		get_message_flag = 0;
-		if(Veh_SplitMsg(message, U6.Message) == Veh_NoneError)
+		if(Veh_SplitMsg(u6_message, U6.Message) == Veh_NoneError)
 		{
 			switch(Veh_MsgToCmd(&U6.Message[0][0]))
 			{
@@ -689,7 +689,7 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1,0);
 							PID_UpdateSetVel(&M2,0);
-							U6_SendData(FeedBack(U6_TxBuffer, (char *)message));
+							U6_SendData(FeedBack(U6_TxBuffer, (char *)u6_message));
 						}
 					}
 					Veh_CheckStateChange(&M1, GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M1));

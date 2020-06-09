@@ -19,17 +19,17 @@
  ******************************************************************
  ******************************************************************/
 
-/* Global Variables */
+/* Global Struct Variables */
 TIM_TimeBaseInitTypeDef			Main_TIM_Struct;
-NVIC_InitTypeDef				Main_NVIC_Struct;
 
 /** @brief  : TIM5 interrupt count config
 **  @agr    : void
 **  @retval : void
 **/
-void TimerInterruptConfig(TIM_TypeDef *TIMx)   // ms
+static void TimerInterruptConfig(TIM_TypeDef *TIMx)   // ms
 {
 	GetTIMxClockCmd(TIMx, ENABLE);
+	NVIC_InitTypeDef Main_NVIC_Struct;
 	
 	Main_TIM_Struct.TIM_Prescaler  			=  50000 - 1; //0.5ms
 	Main_TIM_Struct.TIM_Period     			=  0;
@@ -357,9 +357,9 @@ static void Peripheral_Config(void)
 {
 	Led_Init();
 	TimerInterruptConfig(TIM5);
-	USART1_Config(115200);	//IMU vs VXL
-	USART2_Config(9600); 	//
-	USART6_Config(19200); 	
+	USART1_Config(U1_Baudrate);	//IMU vs VXL
+	USART2_Config(U2_Baudrate); 	//GPS vs VXL
+	USART6_Config(U6_Baudrate); 	//Lora-PC vs Lora-VXL
 	Encoder_Config();				
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 }
@@ -391,7 +391,7 @@ int main(void)
 						if(VehStt.GPS_Coordinate_Reveived)
 						{
 							VehStt.GPS_Coordinate_Reveived = Check_NOK;
-							if((GPS_NEO.GPS_Quality == RTK_Fixed) || (GPS_NEO.GPS_Quality == RTK_Float))
+							if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
 							{
 								OverWritePosition(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
 								GPS_StanleyCompute();
@@ -417,7 +417,7 @@ int main(void)
 							GPS_UpdateCoordinateXY(&GPS_NEO, selfPosition.x, selfPosition.y);
 							GPS_StanleyCompute();
 						}
-						else if((GPS_NEO.GPS_Quality == RTK_Fixed) || (GPS_NEO.GPS_Quality == RTK_Float))
+						else if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
 						{
 							GPS_NEO.NewDataAvailable = 0;
 							GPS_StanleyCompute();
