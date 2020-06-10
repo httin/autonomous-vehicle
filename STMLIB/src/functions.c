@@ -646,25 +646,26 @@ void GPS_SavePathCoordinateToFlash(GPS *pgps, FlashMemory *pflash)
 	WriteToFlash(pflash,FLASH_Sector_6,FLASH_GPSPara_BaseAddr);
 }
 
-/** @brief  : Convert lattitude and longtitude value into Degree
-**  @agr    : Lattitude value
-**  @retval : Degree value
+/** @brief  : Convert lattitude/longtitude in DMS format into DD format
+              dd.ff = dd + mm/60 + ss/3600
+**  @agr    : Lattitude/Longitude in NMEA format (DMS)
+**  @retval : Lattitude/Longitude in DD format (*-1 for W and S) 
 **/
 double GPS_LLToDegree(double LL)
 {
-	double degree, minute, temp;
-	degree = (int)(LL / 100);
-	temp = (double)(degree * 100);
-	minute = LL - temp;
-	minute = minute / 60;
-	return (degree +  minute);
+    double dd, mm;
+	dd = (int)(LL / 100); 
+	mm = LL - (double)(dd * 100);
+	return (dd + mm/60);
 }
 
 /** @brief  : Function get lat lon value from GNGLL message
-**  @agr    : String value received from message
+**  @agr    : 
+        @pgps: pointer to instance of GPS
+        @inputmessage: a string represent latitude in ddmm.mmmmm format 
 **  @retval : Value
 **/
-void GPS_GetLatFromString(GPS *pgps, char *inputmessage)
+void GPS_StringToLat(GPS *pgps, char *inputmessage)
 {
 	double s1 = 0, s2 = 0;
 	int temp = 1000;
@@ -685,9 +686,11 @@ void GPS_GetLatFromString(GPS *pgps, char *inputmessage)
 
 /** @brief  : Function get lat lon value from GNGLL message
 **  @agr    : String value received from message
+        @pgps: pointer to instance of GPS
+        @inputmessage: a string represent latitude in dddmm.mmmmm format 
 **  @retval : Value
 **/
-void GPS_GetLonFromString(GPS *pgps, char *inputmessage)
+void GPS_StringToLng(GPS *pgps, char *inputmessage)
 {
 	double s1 = 0, s2 = 0;
 	int temp = 10000;
@@ -936,16 +939,15 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 	{
 		Length = LengthOfLine(&inputmessage[GxGLL_Index]);
 		GetMessageInfo( (char *)&inputmessage[GxGLL_Index], result, ',');
-		if( IsCorrectMessage(&inputmessage[GxGLL_Index + 1], 
-			Length - 4, 
+		if( IsCorrectMessage(&inputmessage[GxGLL_Index + 1], Length - 4, 
 			inputmessage[GxGLL_Index + Length - 2], 
 			inputmessage[GxGLL_Index + Length - 1]) )
 		{
 			if(result[6][0] == 'A') // Block STATUS, 'A': data valid, 'V': data not valid
 			{
 				// Latitude range is from 0 to 90 and longitude is range from 0 to 180.
-				GPS_GetLatFromString(&GPS_NEO, &result[1][0]); // Latitude in ddmm.mmmm format
-				GPS_GetLonFromString(&GPS_NEO, &result[3][0]); // Longitude in dddmm.mmmm format
+				GPS_StringToLat(&GPS_NEO, &result[1][0]); 
+				GPS_StringToLng(&GPS_NEO, &result[3][0]); 
 				GPS_LatLonToUTM(&GPS_NEO);
 			} else 
 				return Veh_InvalidGxGLLMessage_Err;
@@ -958,12 +960,11 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 	{
 		Length = LengthOfLine(&inputmessage[GxGGA_Index]);
 		GetMessageInfo( (char *)&inputmessage[GxGGA_Index], result, ',');
-		if(IsCorrectMessage(&inputmessage[GxGGA_Index + 1], 
-			Length - 4, 
+		if( IsCorrectMessage(&inputmessage[GxGGA_Index + 1], Length - 4, 
 			inputmessage[GxGGA_Index + Length - 2], 
-			inputmessage[GxGGA_Index + Length - 1]))
+			inputmessage[GxGGA_Index + Length - 1]) )
 		{
-			pgps->GPS_Quality = (enum_GPS)GetValueFromString(&result[6][0]);
+			pgps->GPS_Quality = (enum_GPS_Quality) GetValueFromString(&result[6][0]);
 		} else 
 			return Veh_GxGGACheckSum_Err;
 	} else 

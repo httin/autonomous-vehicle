@@ -70,7 +70,7 @@ typedef enum{
 	Fixed_RTK      = 4,
 	Float_RTK      = 5,
 	Dead_Reckoning = 6,
-}enum_GPS;
+}enum_GPS_Quality;
 
 /********************************************************************
  *							Define Struct 							*
@@ -79,7 +79,7 @@ typedef struct Status{
 	enum_Status 		IMU_FirstSetAngle;			// 0. IMU first received angle after turning on
 	enum_Status			Veh_Sample_Time;			// 1. Vehicle sample time finished
 	enum_Status			Veh_Send_Data;				// 2. Vehicle send data time finished
-	enum_Status			GPS_Coordinate_Reveived;	// 3. 
+	enum_Status			GPS_Coordinate_Received;	// 3. 
 	enum_Status			GPS_ValidGPS;				// 4.
 	enum_Status			Veh_SendData_Flag;			// 5. Flag to ENABLE send data from vehicle, set/unset by F7/F8
 	enum_Status			Veh_Calib_Flag;				// 6.
@@ -157,43 +157,43 @@ typedef struct IMU{
 
 typedef struct GPS{
 	/* Robot state */
-	double      CorX;
-	double      CorY;
-	double      Pre_CorX;
-	double      Pre_CorY;
-	double      dx;
-	double      dy;
-	int         NewDataAvailable;
-	int         Times;
-	IMU         *Angle;
-	int         P_Yaw_Index;
-	double      efa;
+	double              CorX;
+	double              CorY;
+	double              Pre_CorX;
+	double              Pre_CorY;
+	double              dx;
+	double              dy;
+	int                 NewDataAvailable;
+	int                 Times;
+	IMU                 *Angle;
+	int                 P_Yaw_Index;
+	double              efa;
 	/* Stanley control variables */
-	double      Thetae;
-	double      Thetad;
-	double      Delta_Angle;
-	double      K;
-	double      Step;
-	double      Robot_Velocity; // (Vr + Vl) / 2
-	double      dmin;
+	double              Thetae;
+	double              Thetad;
+	double              Delta_Angle;
+	double              K;
+	double              Step;
+	double              Robot_Velocity; // (Vr + Vl) / 2
+	double              dmin;
 	/* Goal radius reached */
-	enum_Status	Goal_Flag;
+	enum_Status         Goal_Flag;
 	/* GPS NEO M8P input coordinates */
-	double      Latitude;
-	double      Longitude;
-	int         NbOfWayPoints;
-	enum_GPS    GPS_Quality;
-	int	        NbOfP;
-	int         Cor_Index;
+	double              Latitude;
+	double              Longitude;
+	int                 NbOfWayPoints;
+	enum_GPS_Quality    GPS_Quality;
+	int                 NbOfP;
+	int                 Cor_Index;
 	/* Buffer read and write data */
-	double      Path_X[20];
-	double      Path_Y[20];
+	double              Path_X[20];
+	double              Path_Y[20];
 #define MAX_NUM_COORDINATE 1000
-	double      P_X[MAX_NUM_COORDINATE];  
-	double      P_Y[MAX_NUM_COORDINATE];  
-	double      P_Yaw[MAX_NUM_COORDINATE];
+	double              P_X[MAX_NUM_COORDINATE];  
+	double              P_Y[MAX_NUM_COORDINATE];  
+	double              P_Yaw[MAX_NUM_COORDINATE];
 	/* Error GPS code */
-	enum_Error  GPS_Error;
+	enum_Error          GPS_Error;
 } GPS;
 
 typedef	struct Vehicle
@@ -307,8 +307,8 @@ void                    GPS_StanleyControl(GPS *pgps, double SampleTime, double 
 void                    GPS_PursuitControl(GPS *pgps, double SampleTime, double M1Velocity, double M2Velocity);
 double                  GPS_LLToDegree(double LL);
 void                    GPS_LatLonToUTM(GPS *pgps);  //Get 2 values of lat-lon and update UTM coordiante to Corx and Cory
-void	                GPS_GetLatFromString(GPS *pgps, char *inputmessage);
-void                    GPS_GetLonFromString(GPS *pgps, char *inputmessage);
+void	                GPS_StringToLat(GPS *pgps, char *inputmessage);
+void                    GPS_StringToLng(GPS *pgps, char *inputmessage);
 void                    GPS_ClearPathBuffer(GPS *pgps);
 void                    GPS_ClearPathCorBuffer(GPS *pgps);
 void                    GPS_UpdatePathYaw(GPS *pgps);

@@ -17,7 +17,7 @@
 #define		U1_GPIO_PinSourceRx				GPIO_PinSource10
 #define 	U1_RCC_AHB1Periph_GPIOx			RCC_AHB1Periph_GPIOA
 /*-------- Hardware config USART2 (can change) ---------
- * @brief:	Baudrate 9600
+ * @brief:	Baudrate 115200
  *			Used to communicate between LORA-GPS & LORA-BASE
  * @pinout:	PD5: TX -> RX ROVER-GPS 
  *			PD6: RX -> TX ROVER-GPS

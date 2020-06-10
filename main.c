@@ -388,9 +388,9 @@ int main(void)
 				case Auto_Mode:
 					if(VehStt.Veh_Auto_Flag)
 					{
-						if(VehStt.GPS_Coordinate_Reveived)
+						if(VehStt.GPS_Coordinate_Received)
 						{
-							VehStt.GPS_Coordinate_Reveived = Check_NOK;
+							VehStt.GPS_Coordinate_Received = Check_NOK;
 							if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
 							{
 								OverWritePosition(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);

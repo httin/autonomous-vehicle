@@ -263,7 +263,7 @@ void DMA1_Stream5_IRQHandler(void)
 	GPS_NEO.GPS_Error = GPS_GetLLQMessage(&GPS_NEO, U2_RxBuffer, U2.Message);
 	if(GPS_NEO.GPS_Error == Veh_NoneError)
 	{
-		VehStt.GPS_Coordinate_Reveived = Check_OK;
+		VehStt.GPS_Coordinate_Received = Check_OK;
 		VehStt.GPS_ValidGPS = Check_OK;
 
 		if((GPS_NEO.GPS_Quality == Fixed_RTK) && (GPS_NEO.GPS_Quality == Float_RTK))
@@ -279,7 +279,7 @@ void DMA1_Stream5_IRQHandler(void)
 	}
 	else
 	{
-		VehStt.GPS_Coordinate_Reveived = Check_NOK;
+		VehStt.GPS_Coordinate_Received = Check_NOK;
 		VehStt.GPS_ValidGPS = Check_NOK;
 		Error_AppendError(&Veh_Error, Veh.Veh_Error);
 	}
