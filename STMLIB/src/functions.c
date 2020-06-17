@@ -309,38 +309,36 @@ uint8_t ToChar(double value, uint8_t *pBuffer, int NbAfDot)
 {
 	uint32_t BefD;
 	double AftD;
-	uint8_t buffer[20], index = 0, strleng = 0, len = 0;
+	uint8_t reverse_buffer[20], reverse_length = 0, index = 0, strleng = 0;
 	if(value < 0)
 	{
 		value = -value;
-		pBuffer[0] = (uint8_t)'-';
-		index++;
-		strleng++;
+		pBuffer[index++] = (uint8_t)'-';
 	}
 	BefD = (uint32_t)value;
 	AftD = value - BefD;
+
 	if (BefD == 0) 
 	{
-		pBuffer[index] = (uint8_t)'0';
-		index++;
-		strleng++;
+		pBuffer[index++] = (uint8_t)'0';
+		strleng = index;
 	}
 	else
 	{
 		while(BefD != 0)
 		{
-			buffer[len] = (BefD % 10) + 48;
+			reverse_buffer[reverse_length] = (BefD % 10) + 48;
 			BefD /= 10;
-			len++;
+			reverse_length++;
 		}
-		strleng = index + len;
+		strleng = index + reverse_length;
 		// take the befD value
-		for (int i = 0; i < len; i++)
+		for (int i = 0; i < reverse_length; i++)
 		{
-			pBuffer[index + i] = buffer[len - i - 1];
+			pBuffer[index + i] = reverse_buffer[reverse_length - i - 1];
 		}
 	}
-
+    /* value is double */
 	if(value != (int)value)
 	{
 		pBuffer[strleng] = (uint8_t)'.';

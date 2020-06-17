@@ -65,9 +65,9 @@ static void M2_Encoder_Config(void)
 	En_TIM_BaseStruct.TIM_Period = 0xFFFF;
 	En_TIM_BaseStruct.TIM_CounterMode = TIM_CounterMode_Up;
 	En_TIM_BaseStruct.TIM_ClockDivision = 0;
-	TIM_TimeBaseInit(M2_TIMx,&En_TIM_BaseStruct);
-	TIM_ARRPreloadConfig(M2_TIMx,ENABLE);
-	TIM_EncoderInterfaceConfig(M2_TIMx,TIM_EncoderMode_TI12,TIM_ICPolarity_Rising,TIM_ICPolarity_Rising);
+	TIM_TimeBaseInit(M2_TIMx, &En_TIM_BaseStruct);
+	TIM_ARRPreloadConfig(M2_TIMx, ENABLE);
+	TIM_EncoderInterfaceConfig(M2_TIMx, TIM_EncoderMode_TI12,TIM_ICPolarity_Rising,TIM_ICPolarity_Rising);
 	TIM_TimeBaseInit(M2_TIMx,&En_TIM_BaseStruct);
 	/* Config interrupt */
 	En_NVIC_Struct.NVIC_IRQChannel = M2_TIMx_IRQn;
@@ -75,7 +75,7 @@ static void M2_Encoder_Config(void)
 	En_NVIC_Struct.NVIC_IRQChannelSubPriority = 0;
 	En_NVIC_Struct.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&En_NVIC_Struct);
-	TIM_ITConfig(M2_TIMx,TIM_IT_Update,ENABLE);
+	TIM_ITConfig(M2_TIMx, TIM_IT_Update, ENABLE);
 	TIM_Cmd(M2_TIMx,ENABLE);
 }
 
