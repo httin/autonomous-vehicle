@@ -525,9 +525,9 @@ void GPS_LatLonToUTM(GPS *pgps)
 	e2 = pow(pow(sa,2) - pow(sb,2),0.5) / sb;
 	e2cuadrada = pow(e2,2);
 	c = pow(sa,2) / sb;
-	lat = la * (pi / 180);
+	lat = la * (pi / 180); // convert from degree to radian
 	lon = lo * (pi / 180);
-	Huso = (double)((int) ((lo / 6) + 31) );
+	Huso = ((int) ((lo / 6) + 31) );
 	S = ((Huso * 6) - 183);
 	deltaS = lon - (S * (pi / 180));
 	a = cos(lat) * sin(deltaS);
@@ -550,26 +550,23 @@ void GPS_LatLonToUTM(GPS *pgps)
 	{
 		yy = 9999999 + yy;
 	}
-	// If dx, dy > 3, then it is noise
+	
+	/* because CorX = CorY = 0 in the first time, so dx, dy will be > 3 */
 	if(pgps->CorX == 0)
 	{
-		pgps->CorX = xx;
-		pgps->CorY = yy;
-		pgps->Pre_CorX = xx;
-		pgps->Pre_CorY = yy;
-		pgps->dx = 0;
-		pgps->dy = 0;
+		pgps->Pre_CorX = pgps->CorX = xx;
+		pgps->Pre_CorY = pgps->CorY = yy;
 		pgps->NewDataAvailable = 1;
 		pgps->Times = 0;
 	}
-	else if((fabs(xx - pgps->CorX) < 3.0) || (fabs(yy - pgps->CorY) < 3.0))
+	else if((fabs(xx - pgps->CorX) < 3.0) || (fabs(yy - pgps->CorY) < 3.0)) // If dx, dy > 3, then it is noise
 	{
 		pgps->Pre_CorX = pgps->CorX;
 		pgps->Pre_CorY = pgps->CorY;
 		pgps->CorX = xx;
 		pgps->CorY = yy;
-		pgps->dx = pgps->CorX - pgps->Pre_CorX;
-		pgps->dy = pgps->CorY - pgps->Pre_CorY;
+		pgps->dx = xx - pgps->Pre_CorX;
+		pgps->dy = yy - pgps->Pre_CorY;
 		pgps->NewDataAvailable = 1;
 		pgps->Times = 0;
 	}
@@ -587,16 +584,14 @@ void GPS_ParametersInit(GPS *pgps)
 	pgps->dy = 0;
 	pgps->NewDataAvailable = 0;
 	pgps->Times = 0;
-	pgps->Latitude = 0;
-	pgps->Longitude = 0;
 	pgps->Robot_Velocity = 0;
+	pgps->NbOfP = 0;
 	pgps->NbOfWayPoints = 0;
 	pgps->Pre_CorX = 0;
 	pgps->Pre_CorY = 0;
 	pgps->Goal_Flag = Check_NOK;
 	pgps->GPS_Error = Veh_NoneError;
 	pgps->K = 0.5;
-	pgps->NbOfP = 0;
 	pgps->Step = 0.5;
 	pgps->dmin = 0;
 	pgps->Cor_Index = 0;
@@ -651,7 +646,7 @@ void GPS_SavePathCoordinateToFlash(GPS *pgps, FlashMemory *pflash)
 **  @agr    : Lattitude/Longitude in NMEA format (DMS)
 **  @retval : Lattitude/Longitude in DD format (*-1 for W and S) 
 **/
-double GPS_LLToDegree(double LL)
+double GPS_DMS_To_DD(double LL)
 {
     double dd, mm;
 	dd = (int)(LL / 100); 
@@ -665,7 +660,7 @@ double GPS_LLToDegree(double LL)
         @inputmessage: a string represent latitude in ddmm.mmmmm format 
 **  @retval : Value
 **/
-void GPS_StringToLat(GPS *pgps, char *inputmessage)
+double GPS_StringToLat(char *inputmessage)
 {
 	double s1 = 0, s2 = 0;
 	int temp = 1000;
@@ -681,7 +676,7 @@ void GPS_StringToLat(GPS *pgps, char *inputmessage)
 		temp /= 10;
 	}
 	s2 /= 100000;
-	pgps->Latitude = GPS_LLToDegree(s1 + s2);
+	return GPS_DMS_To_DD(s1 + s2);
 }
 
 /** @brief  : Function get lat lon value from GNGLL message
@@ -690,7 +685,7 @@ void GPS_StringToLat(GPS *pgps, char *inputmessage)
         @inputmessage: a string represent latitude in dddmm.mmmmm format 
 **  @retval : Value
 **/
-void GPS_StringToLng(GPS *pgps, char *inputmessage)
+double GPS_StringToLng(char *inputmessage)
 {
 	double s1 = 0, s2 = 0;
 	int temp = 10000;
@@ -701,7 +696,7 @@ void GPS_StringToLng(GPS *pgps, char *inputmessage)
 		temp /= 10;
 	}
 	s2 /= 100000;
-	pgps->Longitude = GPS_LLToDegree(s1 + s2);
+	return GPS_DMS_To_DD(s1 + s2);
 }
 
 void GPS_ClearPathCorBuffer(GPS *pgps)
@@ -920,13 +915,19 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 		/* Because GxGGA come before GxGLL */
 		if(inputmessage[Message_Index] == (uint8_t)'$')
 		{
-			if( (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGGA")) || 
-				(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGGA")) )
+			if( (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGGA"))
+#ifdef GPGGA
+				|| (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGGA"))
+#endif
+				)
 			{
 				GxGGA_Index = Message_Index;
 			}
-			else if( (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGLL")) ||
-					 (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGLL")) )
+			else if( (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGLL")) 
+#ifdef GPGLL
+					 || (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGLL"))
+#endif
+					)
 			{
 				GxGLL_Index = Message_Index;
 				break;
@@ -946,8 +947,8 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 			if(result[6][0] == 'A') // Block STATUS, 'A': data valid, 'V': data not valid
 			{
 				// Latitude range is from 0 to 90 and longitude is range from 0 to 180.
-				GPS_StringToLat(&GPS_NEO, &result[1][0]); 
-				GPS_StringToLng(&GPS_NEO, &result[3][0]); 
+				GPS_NEO.Latitude = GPS_StringToLat(&result[1][0]); 
+				GPS_NEO.Longitude = GPS_StringToLng(&result[3][0]); 
 				GPS_LatLonToUTM(&GPS_NEO);
 			} else 
 				return Veh_InvalidGxGLLMessage_Err;
@@ -971,79 +972,6 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 		return Veh_ReadGxGGAMessage_Err;
 
 	return Veh_NoneError;
-}
-
-/** @brief  : Get message from GNGLL/GPGLL 
-**  @agr    : GPS and Inputmessage
-**  @retval : None
-**/
-enum_Status	GPS_GetCoordinateMessage(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL])
-{
-	int index = 0;
-	enum_Status flag = Check_NOK;
-	while(inputmessage[index] != 0)
-	{
-		if(inputmessage[index] == '$')
-		{
-			if( ((inputmessage[index + 1] == 'G') && 
-				 (inputmessage[index + 2] == 'N') && 
-				 (inputmessage[index + 3] == 'G') && 
-				 (inputmessage[index + 4] == 'L') && 
-				 (inputmessage[index + 5] == 'L')) || 
-				((inputmessage[index + 1] == 'G') && 
-				 (inputmessage[index + 2] == 'P') && 
-				 (inputmessage[index + 3] == 'G') && 
-				 (inputmessage[index + 4] == 'L') && 
-				 (inputmessage[index + 5] == 'L')) )
-			{
-				flag = Check_OK;
-				break;
-			}
-			else index++;
-		}
-		else index++;
-	}
-	if(flag)
-		GetMessageInfo( (char *)&inputmessage[index], result,',');
-	else return Check_NOK;
-	return IsCorrectMessage(&inputmessage[index + 1], 46, (uint8_t)result[7][2], (uint8_t)result[7][3]);
-}
-
-/** @brief  : Get quality value from GNGGA/GPGGA message
-**  @agr    : GPS and Inputmessage
-**  @retval : None
-**/
-enum_Status GPS_GetQualityFromString(GPS *pgps, uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL]) 
-{
-	int index = 0;
-	enum_Status flag = Check_NOK;
-	while(inputmessage[index] != 0)
-	{
-		if(inputmessage[index] == '$')
-		{
-			if( ((inputmessage[index + 1] == 'G') && 
-				 (inputmessage[index + 2] == 'N') && 
-				 (inputmessage[index + 3] == 'G') && 
-				 (inputmessage[index + 4] == 'G') && 
-				 (inputmessage[index + 5] == 'A')) || 
-				((inputmessage[index + 1] == 'G') && 
-				 (inputmessage[index + 2] == 'P') && 
-				 (inputmessage[index + 3] == 'G') && 
-				 (inputmessage[index + 4] == 'G') && 
-				 (inputmessage[index + 5] == 'A')) )
-			{
-				flag = Check_OK;
-				break;
-			} else 
-				index++;
-		} else 
-			index++;
-	}
-	if(flag)
-		GetMessageInfo((char*)&inputmessage[index],result,',');
-	else 
-		return Check_NOK;
-	return IsCorrectMessage(&inputmessage[index + 1],LengthOfLine(&inputmessage[index + 1]) - 3, (uint8_t)result[14][5], (uint8_t)result[14][6]);
 }
 
 /*-------------------- Fuzzy control -----------------------*/

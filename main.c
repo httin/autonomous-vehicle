@@ -278,8 +278,8 @@ void GPS_StanleyCompute()
 	{
 		GPS_PursuitControl(&GPS_NEO, Timer.T, M1.Current_Vel, M2.Current_Vel);
 	}
-	IMU_UpdateSetAngle(&Mag,GPS_NEO.Delta_Angle);
-	IMU_UpdateFuzzyInput(&Mag,&Timer.T);
+	IMU_UpdateSetAngle(&Mag, GPS_NEO.Delta_Angle);
+	IMU_UpdateFuzzyInput(&Mag, &Timer.T);
 	Defuzzification_Max_Min(&Mag);
 	if(Mag.Fuzzy_Out >= 0)
 	{

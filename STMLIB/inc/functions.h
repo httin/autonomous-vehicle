@@ -98,11 +98,11 @@ typedef struct Error{
 } Error;
 
 typedef struct Time{
-	double			T; // = (ms to sample) * (1 / SYSTICK_INTERRUPT) (s)
-	uint32_t		sample_time; // Thoi gian lay mau cua VXL (ms)
-	uint32_t    	sample_count; 
-	uint32_t    	send_time;
-	uint32_t		send_count;
+	double      T; // = (ms to sample) * (1 / SYSTICK_INTERRUPT) (s)
+	uint32_t    sample_time; // Thoi gian lay mau cua VXL (ms)
+	uint32_t    sample_count; 
+	uint32_t    send_time;
+	uint32_t    send_count;
 } Time;
 
 typedef	struct  DCMotor{
@@ -305,10 +305,10 @@ int                     FeedBack(uint8_t *outputmessage, char inputstring[20]);
 void                    GPS_ParametersInit(GPS *pgps);
 void                    GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double M2Velocity);
 void                    GPS_PursuitControl(GPS *pgps, double SampleTime, double M1Velocity, double M2Velocity);
-double                  GPS_LLToDegree(double LL);
+double                  GPS_DMS_To_DD(double LL);
+double	                GPS_StringToLat(char *inputmessage);
+double                  GPS_StringToLng(char *inputmessage);
 void                    GPS_LatLonToUTM(GPS *pgps);  //Get 2 values of lat-lon and update UTM coordiante to Corx and Cory
-void	                GPS_StringToLat(GPS *pgps, char *inputmessage);
-void                    GPS_StringToLng(GPS *pgps, char *inputmessage);
 void                    GPS_ClearPathBuffer(GPS *pgps);
 void                    GPS_ClearPathCorBuffer(GPS *pgps);
 void                    GPS_UpdatePathYaw(GPS *pgps);

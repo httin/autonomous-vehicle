@@ -1,3 +1,6 @@
+#ifndef TWO_WHEEL_ROBOT_H
+#define TWO_WHEEL_ROBOT_H
+
 #include <math.h>
 
 typedef struct SelfPosition
@@ -15,5 +18,4 @@ void OverWritePosition(SelfPosition *selfPos, double x, double y);
 
 extern SelfPosition selfPosition;
 
-
-
+#endif

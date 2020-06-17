@@ -49,7 +49,7 @@
 #define IMU_RX_BUFFERSIZE 100
 extern 		uint8_t 	U1_TxBuffer[IMU_TX_BUFFERSIZE], U1_RxBuffer[IMU_RX_BUFFERSIZE];
 #define ROVER_TX_BUFFERSIZE 1
-#define ROVER_RX_BUFFERSIZE 500
+#define ROVER_RX_BUFFERSIZE 200
 extern 		uint8_t		U2_TxBuffer[ROVER_TX_BUFFERSIZE], U2_RxBuffer[ROVER_RX_BUFFERSIZE];
 #define MAX_LORA_BUFFERSIZE	58
 extern 		uint8_t 	U6_TxBuffer[MAX_LORA_BUFFERSIZE + 1], U6_RxBuffer[MAX_LORA_BUFFERSIZE + 1]; // +1 for NULL-terminated

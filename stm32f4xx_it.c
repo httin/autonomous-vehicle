@@ -266,12 +266,13 @@ void DMA1_Stream5_IRQHandler(void)
 		VehStt.GPS_Coordinate_Received = Check_OK;
 		VehStt.GPS_ValidGPS = Check_OK;
 
-		if((GPS_NEO.GPS_Quality == Fixed_RTK) && (GPS_NEO.GPS_Quality == Float_RTK))
+		if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
 		{
+			/* first time get the Fix Mode */
 			if(!VehStt.GPS_FirstGetPosition)
 			{
-				OverWritePosition(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
 				VehStt.GPS_FirstGetPosition = Check_OK;
+				OverWritePosition(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
 				GPS_NEO.Pre_CorX = GPS_NEO.CorX;
 				GPS_NEO.Pre_CorY = GPS_NEO.CorY;
 			}
@@ -283,7 +284,7 @@ void DMA1_Stream5_IRQHandler(void)
 		VehStt.GPS_ValidGPS = Check_NOK;
 		Error_AppendError(&Veh_Error, Veh.Veh_Error);
 	}
-	DMA_Cmd(DMA1_Stream5,ENABLE);
+	DMA_Cmd(DMA1_Stream5, ENABLE);
 }
 
 /** ----------------------------------------------------------- **/
