@@ -139,7 +139,7 @@ int append_string_to_buffer(uint8_t *buf, const char *str)
 void SendStatusData(void)
 {
 	Veh.SendData_Ind = 0;
-    Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VEHST,");
+	Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VEHST,");
 
 	Veh.SendData_Ind += ToChar(Veh.Mode,&U6_TxBuffer[Veh.SendData_Ind],1); 
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
@@ -178,7 +178,7 @@ void SendStatusData(void)
 void SendData_0(void)
 {
 	Veh.SendData_Ind = 0;
-    Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VINFO,0,");
+	Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VINFO,0,");
 
 	Veh.SendData_Ind += ToChar(M1.Set_Vel,&U6_TxBuffer[Veh.SendData_Ind],3); // M1 SetVelocity
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
@@ -205,7 +205,7 @@ void SendData_0(void)
 void SendData_1(void)
 {
 	Veh.SendData_Ind = 0;
-    Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VINFO,1,");
+	Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VINFO,1,");
 
 	if(VehStt.GPS_ValidGPS)
 	{
@@ -232,7 +232,7 @@ void SendData_1(void)
 void SendData_2(void)
 {
 	Veh.SendData_Ind = 0;
-    Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VINFO,2,");
+	Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VINFO,2,");
 
 	Veh.SendData_Ind += ToChar(GPS_NEO.Thetae * (180/pi),&U6_TxBuffer[Veh.SendData_Ind],3);
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
@@ -282,7 +282,7 @@ void GPS_StanleyCompute()
 	}
 }
 
-static void GetVehicleVelocity(void)
+static void Update_Velocity(void)
 {
 	M1.Current_Vel = (GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M1) == 0) ? 
 		(((double)((M1.Enc + (M1.OverFlow - 1) * 65535) - M1.PreEnc)/ 39400) * 60) / Timer.T : // Backward up counting
@@ -342,8 +342,8 @@ static void Peripheral_Config(void)
 	Led_Init();
 	TimerInterruptConfig(TIM5);
 	USART1_Config(U1_Baudrate);	//IMU vs VXL
-	USART2_Config(U2_Baudrate); 	//GPS vs VXL
-	USART6_Config(U6_Baudrate); 	//Lora-PC vs Lora-VXL
+	USART2_Config(U2_Baudrate); //GPS vs VXL
+	USART6_Config(U6_Baudrate); //Lora-PC vs Lora-VXL
 	Encoder_Config();				
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 }
@@ -364,7 +364,7 @@ int main(void)
 		{
 			M1.Enc = TIM_GetCounter(TIM3);
 			M2.Enc = TIM_GetCounter(TIM4);
-			GetVehicleVelocity();
+			Update_Velocity();
 			switch((int)Veh.Mode)
 			{
 				/*-------------- Auto mode section ------------------*/

@@ -5,7 +5,7 @@
 
 typedef struct SelfPosition
 {
-    double x;
+    double x; 
     double y;
     double w_left;
     double w_right;
@@ -13,9 +13,9 @@ typedef struct SelfPosition
 } SelfPosition;
 
 void Self_ParametersInit(SelfPosition *pself);
-void SelfPositionUpdateParams(SelfPosition *selfPos, double w_left, double w_right, double yaw, double sampleTime);
+void SelfPositionUpdateParams(SelfPosition *selfPos, double rpm_left, double rpm_right, double yaw, double sampleTime);
 void OverWritePosition(SelfPosition *selfPos, double x, double y);
 
 extern SelfPosition selfPosition;
 
-#endif
+#endif 

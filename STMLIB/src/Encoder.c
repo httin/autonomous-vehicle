@@ -90,26 +90,26 @@ static void PWM_Config(uint16_t freq)
 	PWM_RCC_PeriphClock;
 	RCC_AHB1PeriphClockCmd(PWM_RCC_AHB1Periph_GPIOx, ENABLE);
 	/* GPIO Config */
-	En_GPIO_Struct.GPIO_Pin 			= 	PWM_GPIO_Pin_OC1|PWM_GPIO_Pin_OC2;
-	En_GPIO_Struct.GPIO_Mode 			= 	GPIO_Mode_AF;
+	En_GPIO_Struct.GPIO_Pin 		= 	PWM_GPIO_Pin_OC1|PWM_GPIO_Pin_OC2;
+	En_GPIO_Struct.GPIO_Mode 		= 	GPIO_Mode_AF;
 	En_GPIO_Struct.GPIO_OType 		= 	GPIO_OType_PP;
 	En_GPIO_Struct.GPIO_Speed 		= 	GPIO_Speed_100MHz;
-	En_GPIO_Struct.GPIO_PuPd 			= 	GPIO_PuPd_NOPULL;
+	En_GPIO_Struct.GPIO_PuPd 		= 	GPIO_PuPd_NOPULL;
 	GPIO_Init(PWM_GPIOx,&En_GPIO_Struct);
 	/* GPIO Config AF */
 	GPIO_PinAFConfig(PWM_GPIOx, PWM_GPIO_PinSourceOC1, PWM_GPIO_AF_TIMx);
 	GPIO_PinAFConfig(PWM_GPIOx, PWM_GPIO_PinSourceOC2, PWM_GPIO_AF_TIMx);
 	/* Time Base Init */
-	En_TIM_BaseStruct.TIM_Prescaler 					= 0;
-	En_TIM_BaseStruct.TIM_Period 							= freq - 1;
-	En_TIM_BaseStruct.TIM_CounterMode 				= TIM_CounterMode_Up;
-	En_TIM_BaseStruct.TIM_ClockDivision 			= TIM_CKD_DIV1;
+	En_TIM_BaseStruct.TIM_Prescaler     = 0;
+	En_TIM_BaseStruct.TIM_Period        = freq - 1;
+	En_TIM_BaseStruct.TIM_CounterMode   = TIM_CounterMode_Up;
+	En_TIM_BaseStruct.TIM_ClockDivision = TIM_CKD_DIV1;
 	TIM_TimeBaseInit(PWM_TIMx, &En_TIM_BaseStruct);
 	/* PWM Config */
-	En_TIM_OCStruct.TIM_OCMode 			= TIM_OCMode_PWM1;
+	En_TIM_OCStruct.TIM_OCMode      = TIM_OCMode_PWM1;
 	En_TIM_OCStruct.TIM_OutputState = TIM_OutputState_Enable;
 	En_TIM_OCStruct.TIM_OCPolarity 	= TIM_OCPolarity_High;
-	En_TIM_OCStruct.TIM_Pulse 			= 0;
+	En_TIM_OCStruct.TIM_Pulse       = 0;
 	TIM_OC1Init(PWM_TIMx, &En_TIM_OCStruct);
 	TIM_OC1PreloadConfig(PWM_TIMx, TIM_OCPreload_Enable);
 	TIM_OC2Init(PWM_TIMx, &En_TIM_OCStruct);
@@ -124,11 +124,11 @@ static void DirPinConfig(void)
 {
 	RCC_AHB1PeriphClockCmd(Dir_RCC_AHB1Periph_GPIOx,ENABLE);
 	
-	En_GPIO_Struct.GPIO_Mode					= GPIO_Mode_OUT;
-	En_GPIO_Struct.GPIO_Pin						= Dir_GPIO_Pin_M1|Dir_GPIO_Pin_M2;
-	En_GPIO_Struct.GPIO_OType					= GPIO_OType_PP;
-	En_GPIO_Struct.GPIO_PuPd					= GPIO_PuPd_NOPULL;
-	En_GPIO_Struct.GPIO_Speed					= GPIO_Speed_50MHz;
+	En_GPIO_Struct.GPIO_Mode	= GPIO_Mode_OUT;
+	En_GPIO_Struct.GPIO_Pin		= Dir_GPIO_Pin_M1|Dir_GPIO_Pin_M2;
+	En_GPIO_Struct.GPIO_OType	= GPIO_OType_PP;
+	En_GPIO_Struct.GPIO_PuPd	= GPIO_PuPd_NOPULL;
+	En_GPIO_Struct.GPIO_Speed	= GPIO_Speed_50MHz;
 	GPIO_Init(Dir_GPIOx,&En_GPIO_Struct);
 }
 

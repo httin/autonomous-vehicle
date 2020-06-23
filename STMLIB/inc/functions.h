@@ -112,7 +112,7 @@ typedef	struct  DCMotor{
 	double		Kd;
 	/* Input and Output of PID controller */
 	double		Set_Vel;
-	double 		Current_Vel;	
+	double 		Current_Vel; // RPM
 	double		*SampleTime;
 	double		Pre_PID;
 	double 		Pre_Error;
