@@ -81,7 +81,7 @@ typedef struct Status{
 	enum_Status			Veh_Send_Data;				// 2. Vehicle send data time finished
 	enum_Status			GPS_Coordinate_Received;	// 3. 
 	enum_Status			GPS_ValidGPS;				// 4.
-	enum_Status			Veh_SendData_Flag;			// 5. Flag to ENABLE send data from vehicle, set/unset by F7/F8
+	enum_Status			Veh_Enable_SendData;		// 5. Flag to ENABLE send data from vehicle, set/unset by F7/F8
 	enum_Status			Veh_Calib_Flag;				// 6.
 	enum_Status			Veh_Timer_Finish;			// 8. Timer 5 Stop 
 	enum_Status			Veh_Timer_Start;			// 9. Timer 5 Start 
@@ -198,7 +198,7 @@ typedef struct GPS{
 
 typedef	struct Vehicle
 {
-	double             Max_Velocity;
+	double             Max_Velocity; // in RPM
 	double             Manual_Velocity;
 	double             Manual_Angle;
 	double             Sensor_Angle;
@@ -238,16 +238,14 @@ typedef struct FlashMemory{
 #define					FLASH_PIDPara_BaseAddr 					0x08060000	// (4 KBytes) (0x08060000 - 0x08060FFF)
 #define					FLASH_FuzPara_BaseAddr					0x08061000	// (4 Kbytes) (0x08061000 - 0x08061FFF)
 #define					FLASH_GPSPara_BaseAddr					0x08040000	// (128 KBytes) 
-/* Control Led Macros */
+/* Control Led Macros, doesn't use PD12, PD13 because it's for Encoder M2 */
 #define LED_RED_PIN      GPIO_Pin_14
-#define LED_GREEN_PIN    GPIO_Pin_12
 #define LED_BLUE_PIN     GPIO_Pin_15
-#define LED_ORANGE_PIN   GPIO_Pin_13
 
 #define LED_ON(LED_PIN)	 GPIOD->BSRRL = LED_PIN
 #define LED_OFF(LED_PIN) GPIOD->BSRRH = LED_PIN
-#define LED_ON_ALL() GPIOD->BSRRL = LED_RED_PIN|LED_GREEN_PIN|LED_BLUE_PIN|LED_ORANGE_PIN
-#define LED_OFF_ALL() GPIOD->BSRRH = LED_RED_PIN|LED_GREEN_PIN|LED_BLUE_PIN|LED_ORANGE_PIN
+#define LED_ON_ALL() GPIOD->BSRRL = LED_RED_PIN|LED_BLUE_PIN
+#define LED_OFF_ALL() GPIOD->BSRRH = LED_RED_PIN|LED_BLUE_PIN
 #define LED_TOGGLE(LED_PIN) GPIOD->ODR ^= LED_PIN
 /* Export variables */
 extern Error           Veh_Error;

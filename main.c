@@ -290,7 +290,7 @@ static void Update_Velocity(void)
 
 	M1.Current_Vel = (M1.Current_Vel < 0) ? 0 : M1.Current_Vel;
 			
-	M2.Current_Vel = (GPIO_ReadOutputDataBit(Dir_GPIOx,Dir_GPIO_Pin_M2) == 0) ? 
+	M2.Current_Vel = (GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M2) == 0) ? 
 		(((double)((M2.Enc + (M2.OverFlow - 1) * 65535) - M2.PreEnc)/ 39400) * 60) / Timer.T :
 		(((double)(((65535 - M2.Enc) + (M2.OverFlow - 1) * 65535) - (65535 - M2.PreEnc))/ 39400) * 60) / Timer.T;
 
@@ -304,7 +304,7 @@ static void Led_Init(void)
 	GPIO_InitTypeDef GPIO_Struct;
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
 	GPIO_Struct.GPIO_Mode 	= GPIO_Mode_OUT;
-	GPIO_Struct.GPIO_Pin	= GPIO_Pin_12|GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15;
+	GPIO_Struct.GPIO_Pin	= GPIO_Pin_14|GPIO_Pin_15;
 	GPIO_Struct.GPIO_OType	= GPIO_OType_PP;
 	GPIO_Struct.GPIO_PuPd	= GPIO_PuPd_NOPULL;
 	GPIO_Struct.GPIO_Speed	= GPIO_Speed_50MHz;
@@ -359,7 +359,7 @@ int main(void)
 	while(1)
 	{
 		/*-----------------------------------------------------------------*/
-		/*------------ Algorithm section ----------------------------------*/
+		/*------------------------ Algorithm section ----------------------*/
 		if(VehStt.Veh_Sample_Time)
 		{
 			M1.Enc = TIM_GetCounter(TIM3);
@@ -425,9 +425,9 @@ int main(void)
 					GPS_NEO.Pre_CorY = GPS_NEO.CorY;
 					break;
 				
-				/*--------------- Manual mode section --------------- -*/
+				/*--------------- Manual mode section ----------------*/
 				/*----------------------------------------------------*/
-				/* Notes: This mode is uses for angle control test purposes */
+				/* Notes: This mode is used for angle control test purposes */
 				case Manual_Mode: 
 					Veh_UpdateVehicleFromKey(&Veh);
 					IMU_UpdateFuzzyInput(&Mag,&Timer.T);
@@ -470,8 +470,8 @@ int main(void)
 								else
 								{
 									Veh.TotalDistance = 0;
-									PID_UpdateSetVel(&M1,0);
-									PID_UpdateSetVel(&M2,0);
+									PID_UpdateSetVel(&M1, 0);
+									PID_UpdateSetVel(&M2, 0);
 									VehStt.Veh_Calib_Flag = Check_NOK;
 									VehStt.IMU_Calib_Finish = Check_OK;
 								}
@@ -498,7 +498,7 @@ int main(void)
 					//SelfPositionUpdateParams(&selfPosition,M2.Current_Vel/60,M1.Current_Vel/60,Timer.T);
 					PID_Compute(&M1);
 					PID_Compute(&M2);
-					Robot_Run(M1.PID_Out,M2.PID_Out);   //Forward down counting Set bit
+					Robot_Run(M1.PID_Out, M2.PID_Out);   //Forward down counting Set bit
 					break;
 				
 				case Soft_Reset_Mode:
@@ -516,7 +516,7 @@ int main(void)
 		/*-----------------------------------------------------------------*/
 		/*------------------------ Send Data section ----------------------*/
 		/*-----------------------------------------------------------------*/
-		if(VehStt.Veh_SendData_Flag)
+		if(VehStt.Veh_Enable_SendData)
 		{
 			if(VehStt.Veh_Send_Data)
 			{

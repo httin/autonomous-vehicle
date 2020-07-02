@@ -25,8 +25,7 @@ void	Error_AppendError(Error *perror, enum_Error err)
 /*----- Init, and function to config vehicle status -------*/
 void	Status_ParametersInit(Status *pStatus)
 {
-	/* VehStt is initialized as a global variable, so all members were 0 */
-	pStatus->Veh_SendData_Flag = Check_NOK;
+	pStatus->Veh_Enable_SendData = Check_NOK;
 }
 
 /** @brief  : Function compute PID value 
@@ -36,7 +35,11 @@ void	Status_ParametersInit(Status *pStatus)
 void PID_Compute(DCMotor *ipid)
 {
 	ipid->SampleTime = &Timer.T;
-	ipid->PID_Out = ipid->Pre_PID + ipid->Kp * (ipid->Set_Vel - ipid->Current_Vel) + 0.5 * ipid->Ki * *(ipid->SampleTime) * ((ipid->Set_Vel - ipid->Current_Vel) + ipid->Pre_Error) + (ipid->Kd / *(ipid->SampleTime)) * ((ipid->Set_Vel - ipid->Current_Vel) - 2 * ipid->Pre_Error + ipid->Pre2_Error);
+	ipid->PID_Out = ipid->Pre_PID + 
+		ipid->Kp * (ipid->Set_Vel - ipid->Current_Vel) + 
+		0.5 * ipid->Ki * *(ipid->SampleTime) * ((ipid->Set_Vel - ipid->Current_Vel) + ipid->Pre_Error) + 
+		(ipid->Kd / *(ipid->SampleTime)) * ((ipid->Set_Vel - ipid->Current_Vel) - 2 * ipid->Pre_Error + ipid->Pre2_Error);
+	
 	ipid->Pre2_Error = ipid->Pre_Error;
 	ipid->Pre_Error = ipid->Set_Vel - ipid->Current_Vel;
 	if(ipid->PID_Out < 0)
@@ -47,7 +50,6 @@ void PID_Compute(DCMotor *ipid)
 }
 
 /** @brief  : First initial PID parameters
-**	@agr    : void
 **	@retval : None
 **/
 void PID_ParametersInitial(DCMotor *ipid)
@@ -57,7 +59,6 @@ void PID_ParametersInitial(DCMotor *ipid)
 }
 
 /** @brief  : PID update parameters function
-**	@agr    : void
 **	@retval : None
 **/
 void PID_ParametersUpdate(DCMotor *ipid, double Kp, double Ki, double Kd)
@@ -126,7 +127,7 @@ int	LengthOfLine(uint8_t *inputmessage)
 }
 
 /* ----------------------- Timer functions -----------------------------------*/
-void	Time_ParametersInit(Time *ptime, uint32_t sample_time_init, uint32_t send_time_init)
+void Time_ParametersInit(Time *ptime, uint32_t sample_time_init, uint32_t send_time_init)
 {
 	ptime->sample_time 	= sample_time_init;
 	ptime->sample_count = 0;
@@ -913,17 +914,21 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 		/* Because GxGGA come before GxGLL */
 		if(inputmessage[Message_Index] == (uint8_t)'$')
 		{
-			if( (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGGA"))
-#ifdef GPGGA
-				|| (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGGA"))
+			if( 
+#ifdef GPGGA_GPGLL
+				(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGGA")) ||
+#else
+				(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGGA"))
 #endif
-				)
+			   )
 			{
 				GxGGA_Index = Message_Index;
 			}
-			else if( (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGLL")) 
-#ifdef GPGLL
-					 || (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGLL"))
+			else if(  
+#ifdef GPGGA_GPGLL
+					 (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGLL")) ||
+#else
+					 (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGLL"))
 #endif
 					)
 			{

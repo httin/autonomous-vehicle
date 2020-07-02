@@ -364,9 +364,9 @@ void DMA2_Stream2_IRQHandler(void)
 					else if(StringHeaderCompare(&U6.Message[1][0],"DATA")) 
 					{
 						if(U6.Message[2][0] == '1')
-							VehStt.Veh_SendData_Flag = Check_OK; //F7, vehicle sending data
+							VehStt.Veh_Enable_SendData = Check_OK; //F7, vehicle sending data
 						else 
-							VehStt.Veh_SendData_Flag = Check_NOK; //F8, vehicle stop sending data
+							VehStt.Veh_Enable_SendData = Check_NOK; //F8, vehicle stop sending data
 					}
 					else
 					{
@@ -400,8 +400,8 @@ void DMA2_Stream2_IRQHandler(void)
 						Robot_AntiClockwise();
 						Veh.Mode = Calib_Mode;
 						VehStt.Veh_Calib_Flag = Check_OK; // Update Calibration IMU status
-						PID_UpdateSetVel(&M1,50);
-						PID_UpdateSetVel(&M2,50);
+						PID_UpdateSetVel(&M1, 50);
+						PID_UpdateSetVel(&M2, 50);
 						StartTimer(TIM5, 3000);
 					}
 					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
@@ -589,13 +589,10 @@ void DMA2_Stream2_IRQHandler(void)
 				case KeyBoard_Control:
 					if(StringHeaderCompare(&U6.Message[1][0],"START"))
 					{
-						if(Veh.Mode != KeyBoard_Mode)
-						{
-							Reset_Motor();
-							Robot_Forward();
-							Veh.Mode = KeyBoard_Mode;
-							Veh_UpdateMaxVelocity(&Veh,MPS2RPM(GetValueFromString(&U6.Message[2][0])));
-						}
+						Reset_Motor();
+						Robot_Forward();
+						Veh.Mode = KeyBoard_Mode;
+						Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[2][0])));
 						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
