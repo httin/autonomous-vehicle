@@ -3,5 +3,6 @@
 
 void TIM16_Delay_US(TIM_TypeDef *TIMx, uint16_t period);
 void TIM16_Delay_MS(TIM_TypeDef *TIMx, uint16_t period);
-void Core_Delay(uint32_t count);
+
+#define while_delay(count) while(count-- > 0){};
 

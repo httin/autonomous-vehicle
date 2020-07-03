@@ -148,7 +148,7 @@ uint8_t get_message_flag; // set when receive "\r\n" indicating we get a full me
   * @param  None
   * @retval None
   */
-void SaveDataToInternalFlash(int key)
+static void SaveDataToInternalFlash(int key)
 {
 	Flash.Length = 0;
 	switch(key)

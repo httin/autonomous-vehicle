@@ -34,11 +34,10 @@ void	Status_ParametersInit(Status *pStatus)
 **/
 void PID_Compute(DCMotor *ipid)
 {
-	ipid->SampleTime = &Timer.T;
 	ipid->PID_Out = ipid->Pre_PID + 
 		ipid->Kp * (ipid->Set_Vel - ipid->Current_Vel) + 
-		0.5 * ipid->Ki * *(ipid->SampleTime) * ((ipid->Set_Vel - ipid->Current_Vel) + ipid->Pre_Error) + 
-		(ipid->Kd / *(ipid->SampleTime)) * ((ipid->Set_Vel - ipid->Current_Vel) - 2 * ipid->Pre_Error + ipid->Pre2_Error);
+		0.5 * ipid->Ki * Timer.T * ((ipid->Set_Vel - ipid->Current_Vel) + ipid->Pre_Error) + 
+		(ipid->Kd / Timer.T) * ((ipid->Set_Vel - ipid->Current_Vel) - 2 * ipid->Pre_Error + ipid->Pre2_Error);
 	
 	ipid->Pre2_Error = ipid->Pre_Error;
 	ipid->Pre_Error = ipid->Set_Vel - ipid->Current_Vel;

@@ -98,9 +98,9 @@ typedef struct Error{
 } Error;
 
 typedef struct Time{
-	double      T; // = (ms to sample) * (1 / SYSTICK_INTERRUPT) (s)
-	uint32_t    sample_time; // Thoi gian lay mau cua VXL (ms)
-	uint32_t    sample_count; 
+	double      T; // sample period (50ms)
+	uint32_t    sample_time; // times of loop to sample (50)
+	uint32_t    sample_count; // counting variable every 1ms interrupt
 	uint32_t    send_time;
 	uint32_t    send_count;
 } Time;
@@ -113,11 +113,10 @@ typedef	struct  DCMotor{
 	/* Input and Output of PID controller */
 	double		Set_Vel;
 	double 		Current_Vel; // RPM
-	double		*SampleTime;
-	double		Pre_PID;
-	double 		Pre_Error;
-	double 		Pre2_Error;
-	double		PID_Out;
+	double 		Pre_Error; // e(k-1)
+	double 		Pre2_Error; // e(k-2)
+	double		Pre_PID; // u(k-1)
+	double		PID_Out; // u(k)
 	/* Encoder parameters */
 	uint16_t  	Enc;
 	uint16_t 	PreEnc;

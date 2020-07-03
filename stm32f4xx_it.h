@@ -77,7 +77,7 @@ void TIM5_IRQHandler(void); // Interrupt for IMU calibration
 
 extern void StartTimer(TIM_TypeDef *TIMx, uint32_t DelayTime);
 extern void StopTimer(TIM_TypeDef *TIMx);
-void SaveDataToInternalFlash(int key);
+static void SaveDataToInternalFlash(int key);
 //#ifdef __cplusplus
 //}
 //#endif

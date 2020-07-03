@@ -6,8 +6,7 @@ NVIC_InitTypeDef						En_NVIC_Struct;
 
 /* Functions of Encoder and PWM */
 
-/** 
-	@Brief: Configuration of Encoder for Motor 1
+/**	@Brief: Configuration of Encoder for Motor 1
  	@Arg:   None 
  	@Retval: None
  **/
