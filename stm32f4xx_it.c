@@ -603,14 +603,15 @@ void DMA2_Stream2_IRQHandler(void)
 					}
 					else
 					{
+						double velo_linear;
+						velo_linear = ((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity;
 						if ((U6.Message[1][0] == 'W') && /* W - move forward */
 							(U6.Message[2][0] == '!') && 
 							(U6.Message[3][0] == '!') && 
 							(U6.Message[4][0] == '!'))
 						{
-							Robot_Forward();
-							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-							PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M1, velo_linear);
+							PID_UpdateSetVel(&M2, velo_linear);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,F"));
 						}
 						else if((U6.Message[1][0] == '!') && /* S - move backward */
@@ -618,9 +619,8 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[3][0] == '!') && 
 								(U6.Message[4][0] == '!'))
 						{
-							Robot_Backward();
-							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-							PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M1, -velo_linear);
+							PID_UpdateSetVel(&M2, -velo_linear);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,B"));
 						}
 						else if((U6.Message[1][0] == '!') && /* A - move left */
@@ -628,9 +628,8 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[3][0] == 'A') && 
 								(U6.Message[4][0] == '!'))
 						{
-							Robot_AntiClockwise();
-							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-							PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M1, velo_linear);
+							PID_UpdateSetVel(&M2, -velo_linear);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,L"));
 						}
 						else if((U6.Message[1][0] == '!') && /* D - move right */
@@ -638,9 +637,8 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[3][0] == '!') && 
 								(U6.Message[4][0] == 'D'))
 						{
-							Robot_Clockwise();
-							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-							PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M1, -velo_linear);
+							PID_UpdateSetVel(&M2, velo_linear);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,R"));
 						}
 						else if((U6.Message[1][0] == 'W') && /* WA - move left+forward */
@@ -648,9 +646,8 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[3][0] == 'A') && 
 								(U6.Message[4][0] == '!'))
 						{
-							Robot_Forward();
-							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-							PID_UpdateSetVel(&M2,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
+							PID_UpdateSetVel(&M1, velo_linear);
+							PID_UpdateSetVel(&M2, velo_linear * 0.5);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LF"));
 						}
 						else if((U6.Message[1][0] == 'W') && /* WD - move right+forward */
@@ -658,9 +655,8 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[3][0] == '!') && 
 								(U6.Message[4][0] == 'D'))
 						{
-							Robot_Forward();
-							PID_UpdateSetVel(&M1,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
-							PID_UpdateSetVel(&M2,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
+							PID_UpdateSetVel(&M1, velo_linear * 0.5);
+							PID_UpdateSetVel(&M2, velo_linear);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RF"));
 						}
 						else if((U6.Message[1][0] == '!') && /* SA - move left+backward */
@@ -668,9 +664,8 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[3][0] == 'A') && 
 								(U6.Message[4][0] == '!'))
 						{
-							Robot_Backward();
-							PID_UpdateSetVel(&M1,((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity);
-							PID_UpdateSetVel(&M2,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
+							PID_UpdateSetVel(&M1, -velo_linear);
+							PID_UpdateSetVel(&M2, -velo_linear * 0.5);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LB"));
 						}
 						else if((U6.Message[1][0] == '!') && /* SD - move right+backward */
@@ -678,15 +673,14 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[3][0] == '!') && 
 								(U6.Message[4][0] == 'D'))
 						{
-							Robot_Backward();
-							PID_UpdateSetVel(&M1,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity) * 0.5);
-							PID_UpdateSetVel(&M2,(((double)(U6.Message[5][0] - 48)/10) * Veh.Max_Velocity));
+							PID_UpdateSetVel(&M1, -velo_linear * 0.5);
+							PID_UpdateSetVel(&M2, -velo_linear);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RB"));
 						}
 						else
 						{
-							PID_UpdateSetVel(&M1,0);
-							PID_UpdateSetVel(&M2,0);
+							PID_UpdateSetVel(&M1, 0);
+							PID_UpdateSetVel(&M2, 0);
 							U6_SendData(FeedBack(U6_TxBuffer, (char *)u6_message));
 						}
 					}
@@ -705,17 +699,19 @@ void DMA2_Stream2_IRQHandler(void)
 /** ----------------------------------------------------------- **/
 /** ----------------------------------------------------------- **/
 /** ----------------------------------------------------------- **/
+#ifdef ENCODER_IT
 void TIM3_IRQHandler(void)
 {
-	TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
 	M1.OverFlow++;
+	TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
 }
 
 void TIM4_IRQHandler(void)
 {
-	TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
 	M2.OverFlow++;
+	TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
 }
+#endif
 
 void TIM5_IRQHandler(void)
 {

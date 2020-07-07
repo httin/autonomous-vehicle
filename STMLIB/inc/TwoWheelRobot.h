@@ -12,7 +12,6 @@ typedef struct SelfPosition
     double R;
 } SelfPosition;
 
-void Self_ParametersInit(SelfPosition *pself);
 void SelfPositionUpdateParams(SelfPosition *selfPos, double rpm_left, double rpm_right, double yaw, double sampleTime);
 void OverWritePosition(SelfPosition *selfPos, double x, double y);
 

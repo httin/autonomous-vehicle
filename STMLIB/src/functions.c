@@ -8,7 +8,7 @@ Error	        Veh_Error;
 Time            Timer;
 Status          VehStt;
 FlashMemory     Flash;
-DCMotor         M1, M2, Ang;
+DCMotor         M1, M2;
 IMU	            Mag;
 GPS             GPS_NEO;
 Message         U2, U6;
@@ -20,7 +20,8 @@ char            TempBuffer[2][30];
 /*----- Error functions -----------------------------------*/
 void	Error_AppendError(Error *perror, enum_Error err)
 {
-	perror->Error_Buffer[perror->Error_Index++] = err;
+	if (perror->Error_Index < 20)
+		perror->Error_Buffer[perror->Error_Index++] = err;
 }
 /*----- Init, and function to config vehicle status -------*/
 void	Status_ParametersInit(Status *pStatus)
@@ -34,18 +35,21 @@ void	Status_ParametersInit(Status *pStatus)
 **/
 void PID_Compute(DCMotor *ipid)
 {
+	ipid->Error = ipid->Set_Vel - ipid->Current_Vel;
+
 	ipid->PID_Out = ipid->Pre_PID + 
-		ipid->Kp * (ipid->Set_Vel - ipid->Current_Vel) + 
-		0.5 * ipid->Ki * Timer.T * ((ipid->Set_Vel - ipid->Current_Vel) + ipid->Pre_Error) + 
-		(ipid->Kd / Timer.T) * ((ipid->Set_Vel - ipid->Current_Vel) - 2 * ipid->Pre_Error + ipid->Pre2_Error);
-	
-	ipid->Pre2_Error = ipid->Pre_Error;
-	ipid->Pre_Error = ipid->Set_Vel - ipid->Current_Vel;
-	if(ipid->PID_Out < 0)
-		ipid->PID_Out = (double)0;
-	if(ipid->PID_Out > 100)
-		ipid->PID_Out = (double)100;
-	ipid->Pre_PID = ipid->PID_Out;
+		ipid->Kp * (ipid->Error - ipid->Pre_Error) + 
+		0.5 * ipid->Ki * Timer.T * (ipid->Error + ipid->Pre_Error) + 
+		(ipid->Kd / Timer.T) * (ipid->Error - 2 * ipid->Pre_Error + ipid->Pre2_Error);
+
+	if(ipid->PID_Out < -100)
+		ipid->PID_Out = -100;
+	else if(ipid->PID_Out > 100)
+		ipid->PID_Out = 100;
+
+	ipid->Pre2_Error = ipid->Pre_Error; // e(k-2) = e(k-1)
+	ipid->Pre_Error = ipid->Error; // e(k-1) = e(k)
+	ipid->Pre_PID = ipid->PID_Out; // u(k-1) = u(k)
 }
 
 /** @brief  : First initial PID parameters
@@ -65,15 +69,6 @@ void PID_ParametersUpdate(DCMotor *ipid, double Kp, double Ki, double Kd)
 	ipid->Kp = Kp;
 	ipid->Ki = Ki;
 	ipid->Kd = Kd;
-}
-
-/** @brief  : PID reset encoder
-**	@retval : None
-**/
-void	PID_ResetEncoder(DCMotor *ipid)
-{
-	ipid->PreEnc = ipid->Enc;
-	ipid->OverFlow = 1;
 }
 
 /** @brief  : PID reset PID
@@ -142,14 +137,6 @@ void	Time_SampleTimeUpdate(Time *ptime, uint32_t sample_time_update)
 }
 
 /*------------------------ Vehicle Status Function ----------------------------*/
-void	Veh_ParametersInit(Vehicle *pveh)
-{
-	pveh->Max_Velocity = MPS2RPM(1);
-	pveh->Mode = KeyBoard_Mode;
-	pveh->Veh_Error = Veh_NoneError;
-	pveh->Controller = Stanley_Controller;
-}
-
 void	Veh_UpdateVehicleFromKey(Vehicle *pveh)
 {
 	if(pveh->ManualCtrlKey == 'W')
@@ -191,7 +178,7 @@ enum_Error	Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_
 		return LORA_WrongCheckSum;
 }
 
-void	Veh_CheckStateChange(DCMotor *ipid, uint8_t State)
+void Veh_CheckStateChange(DCMotor *ipid, uint8_t State)
 {
 	if(ipid->Change_State != State)
 	{
@@ -468,7 +455,7 @@ void Convert_Double_Array(double *pInputArray, int n)
 }
 
 /*-------------------- Stanley Function ------------------*/
-/** @brief  : Convert m/s to roll/minute
+/** @brief  : Convert m/s to revolution per minute
 **  @agr    : Input velocity in m/s from panel
 **  @retval : RPM value
 **/

@@ -35,7 +35,7 @@ static void TimerInterruptConfig(TIM_TypeDef *TIMx)   // ms
 	Main_TIM_Struct.TIM_Period     			=  0;
 	Main_TIM_Struct.TIM_ClockDivision 		=  TIM_CKD_DIV1;
 	Main_TIM_Struct.TIM_CounterMode  		=  TIM_CounterMode_Up;
-	TIM_TimeBaseInit(TIMx,&Main_TIM_Struct);
+	TIM_TimeBaseInit(TIMx, &Main_TIM_Struct);
 	
 	Main_NVIC_Struct.NVIC_IRQChannel  		=  GetIRQHandlerFromTIMxCC(TIMx);
 	Main_NVIC_Struct.NVIC_IRQChannelCmd 	=  ENABLE;
@@ -282,29 +282,31 @@ void GPS_StanleyCompute()
 	}
 }
 
-static void Update_Velocity(void)
+static void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx)
 {
-	M1.Current_Vel = (GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M1) == 0) ? 
-		(((double)((M1.Enc + (M1.OverFlow - 1) * 65535) - M1.PreEnc)/ 39400) * 60) / Timer.T : // Backward up counting
-		(((double)(((65535 - M1.Enc) + (M1.OverFlow - 1) * 65535) - (65535 - M1.PreEnc))/ 39400) * 60) / Timer.T; // Front down
+	Motor->PreEnc = Motor->Enc;
+	Motor->Enc = TIMx->CNT;
+	Motor->Diff_Encoder = Motor->Enc - Motor->PreEnc;
 
-	M1.Current_Vel = (M1.Current_Vel < 0) ? 0 : M1.Current_Vel;
-			
-	M2.Current_Vel = (GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M2) == 0) ? 
-		(((double)((M2.Enc + (M2.OverFlow - 1) * 65535) - M2.PreEnc)/ 39400) * 60) / Timer.T :
-		(((double)(((65535 - M2.Enc) + (M2.OverFlow - 1) * 65535) - (65535 - M2.PreEnc))/ 39400) * 60) / Timer.T;
+	if (Motor->Diff_Encoder > 30000)
+		Motor->Diff_Encoder = Motor->Enc - Motor->PreEnc - 0xFFFF;
+	else if (Motor->Diff_Encoder < -30000)
+		Motor->Diff_Encoder = Motor->Enc - Motor->PreEnc + 0xFFFF;
 
-	M2.Current_Vel = (M2.Current_Vel < 0) ? 0 : M2.Current_Vel;
+	Motor->Total_Encoder += Motor->Diff_Encoder;
+	Motor->Current_Vel = (((double)Motor->Diff_Encoder / 39400) * 60) / Timer.T; // rpm
+	//Motor->Current_Vel = (Motor->Current_Vel < 0) ? 0 : Motor->Current_Vel;
 }
+
 /************************************************************************
 ************************ Initialization Functions ***********************
 *************************************************************************/
-static void Led_Init(void)
+static void Led_Init(uint32_t gpio_pin)
 {
 	GPIO_InitTypeDef GPIO_Struct;
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
 	GPIO_Struct.GPIO_Mode 	= GPIO_Mode_OUT;
-	GPIO_Struct.GPIO_Pin	= GPIO_Pin_14|GPIO_Pin_15;
+	GPIO_Struct.GPIO_Pin	= gpio_pin;
 	GPIO_Struct.GPIO_OType	= GPIO_OType_PP;
 	GPIO_Struct.GPIO_PuPd	= GPIO_PuPd_NOPULL;
 	GPIO_Struct.GPIO_Speed	= GPIO_Speed_50MHz;
@@ -317,7 +319,11 @@ static void Parameters_Init(void)
 	Veh_Error.Error_Index = 0;
 	/*-----------------Timer Init ---------------*/
 	Time_ParametersInit(&Timer, SAMPLE_TIME_50MS, SEND_TIME_1S);
+	/* ------------------ Status ------------------ */
 	Status_ParametersInit(&VehStt);
+	/*VehStt = (Status) {
+		.Veh_Enable_SendData = Check_NOK
+	};*/
 	/*------------PID Parameter Init-------------*/
 	PID_ReadParametersFromFlash();
 	PID_ParametersInitial(&M1);
@@ -331,15 +337,22 @@ static void Parameters_Init(void)
 	//GPS_ReadParametersFromFlash(&Flash,&GPS_NEO);
 	//EraseMemory(FLASH_Sector_6);
 	GPS_ParametersInit(&GPS_NEO);
-	/*------------------Vehicle Init--------------*/
-	Veh_ParametersInit(&Veh);
-	/*----------------- Robot two wheel Init-----*/
-	Self_ParametersInit(&selfPosition);
+	/* ------------------ Vehicle ------------------ */
+	Veh = (Vehicle) {
+		.Max_Velocity = MPS2RPM(1),
+		.Mode = KeyBoard_Mode,
+		.Veh_Error = Veh_NoneError,
+		.Controller = Stanley_Controller
+	};
+	/* ---------------- SelfPosition -------------- */
+	selfPosition = (SelfPosition) {
+    	.R = Wheel_Radius
+	};
 }
 
 static void Peripheral_Config(void)
 {
-	Led_Init();
+	Led_Init(LED_RED_PIN | LED_BLUE_PIN);
 	TimerInterruptConfig(TIM5);
 	USART1_Config(U1_Baudrate);	//IMU vs VXL
 	USART2_Config(U2_Baudrate); //GPS vs VXL
@@ -362,9 +375,8 @@ int main(void)
 		/*------------------------ Algorithm section ----------------------*/
 		if(VehStt.Veh_Sample_Time)
 		{
-			M1.Enc = TIM_GetCounter(TIM3);
-			M2.Enc = TIM_GetCounter(TIM4);
-			Update_Velocity();
+			EncoderProcessing(&M1, TIM3);
+			EncoderProcessing(&M2, TIM4);
 			switch((int)Veh.Mode)
 			{
 				/*-------------- Auto mode section ------------------*/
@@ -430,7 +442,7 @@ int main(void)
 				/* Notes: This mode is used for angle control test purposes */
 				case Manual_Mode: 
 					Veh_UpdateVehicleFromKey(&Veh);
-					IMU_UpdateFuzzyInput(&Mag,&Timer.T);
+					IMU_UpdateFuzzyInput(&Mag, &Timer.T);
 					Defuzzification_Max_Min(&Mag);
 					if(Mag.Fuzzy_Out >= 0)
 					{
@@ -456,20 +468,21 @@ int main(void)
 					{
 						if(VehStt.Veh_Calib_Flag)
 						{
+							static uint8_t loop;
 							if(Veh.Distance < 39400)
 							{
-								Veh.Distance += (M2.Enc + (M2.OverFlow - 1) * 65535) - M2.PreEnc;
+								Veh.Distance = M2.Total_Encoder;
 							}
 							else
 							{
 								Veh.Distance = 0;
-								if(Veh.TotalDistance < 20)
+								if(loop < 20)
 								{
-									Veh.TotalDistance++;
+									loop++;
 								}
 								else
 								{
-									Veh.TotalDistance = 0;
+									loop = 0;
 									PID_UpdateSetVel(&M1, 0);
 									PID_UpdateSetVel(&M2, 0);
 									VehStt.Veh_Calib_Flag = Check_NOK;
@@ -488,7 +501,7 @@ int main(void)
 						}
 						PID_Compute(&M1);
 						PID_Compute(&M2);
-						Robot_Run(M1.PID_Out,M2.PID_Out);
+						Robot_Run(M1.PID_Out, M2.PID_Out);
 					}
 					break;
 				
@@ -498,7 +511,7 @@ int main(void)
 					//SelfPositionUpdateParams(&selfPosition,M2.Current_Vel/60,M1.Current_Vel/60,Timer.T);
 					PID_Compute(&M1);
 					PID_Compute(&M2);
-					Robot_Run(M1.PID_Out, M2.PID_Out);   //Forward down counting Set bit
+					Robot_Run(M1.PID_Out, M2.PID_Out);
 					break;
 				
 				case Soft_Reset_Mode:
@@ -508,8 +521,7 @@ int main(void)
 					}
 					break;
 			}
-			PID_ResetEncoder(&M1);
-			PID_ResetEncoder(&M2);
+			//M1.OverFlow = M2.OverFlow = 1;
 			VehStt.Veh_Sample_Time = Check_NOK;
 		}
 		
@@ -520,10 +532,9 @@ int main(void)
 		{
 			if(VehStt.Veh_Send_Data)
 			{
+				while(!DMA_GetFlagStatus(DMA2_Stream6, DMA_FLAG_TCIF6)); // transfer complete
 				SendData_0();
-				while(!DMA_GetFlagStatus(DMA2_Stream6, DMA_FLAG_TCIF6)); // transfer complete
 				SendData_1();
-				while(!DMA_GetFlagStatus(DMA2_Stream6, DMA_FLAG_TCIF6)); // transfer complete
 				SendData_2();
 			}
 			VehStt.Veh_Send_Data = Check_NOK;

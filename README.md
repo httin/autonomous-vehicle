@@ -1,5 +1,7 @@
 # autonomous-vehicle
 
+*(In developing process...)*
+
 **1. Hardware**
 1) 1 stm32f411 + 1 stm32f407
 2) 2 H-Bridge HI216

@@ -9,7 +9,7 @@
 /*----- Hardware Encoder config M1: PA6, PA7 ------*/
 #define 				M1_TIMx								TIM3
 #define					M1_GPIOx							GPIOA
-#define					M1_RCC_PeriphClock					RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3,ENABLE)
+#define					M1_RCC_PeriphClock					RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE)
 #define					M1_RCC_AHB1Periph_GPIOx				RCC_AHB1Periph_GPIOA
 #define					M1_GPIO_Pin_x1						GPIO_Pin_6	// PA6 = CHA M1
 #define					M1_GPIO_Pin_x2						GPIO_Pin_7	// PA7 = CHB M1
@@ -20,7 +20,7 @@
 /*----- Hardware Encoder config M2: PD12, PD13 ------*/
 #define 				M2_TIMx								TIM4
 #define					M2_GPIOx							GPIOD
-#define					M2_RCC_PeriphClock					RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4,ENABLE)
+#define					M2_RCC_PeriphClock					RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE)
 #define					M2_RCC_AHB1Periph_GPIOx				RCC_AHB1Periph_GPIOD
 #define					M2_GPIO_Pin_x1						GPIO_Pin_12 // PD12 = CHA M2
 #define					M2_GPIO_Pin_x2						GPIO_Pin_13 // PD13 = CHB M2
@@ -36,7 +36,7 @@
 #define					PWM_GPIO_AF_TIMx					GPIO_AF_TIM9
 #define					PWM_GPIO_PinSourceOC1				GPIO_PinSource2
 #define					PWM_GPIO_PinSourceOC2				GPIO_PinSource3
-#define					PWM_RCC_PeriphClock					RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM9,ENABLE)
+#define					PWM_RCC_PeriphClock					RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM9, ENABLE)
 #define					PWM_RCC_AHB1Periph_GPIOx			RCC_AHB1Periph_GPIOA
 /*----- Direction Pin  -----------------*/
 #define					Dir_GPIOx							GPIOC
@@ -56,24 +56,26 @@
 	M1_Forward();\
 	M2_Forward();
 
-
 #define Robot_Backward()\
 	M1_Backward();\
 	M2_Backward();
 
+/* ROTATE RIGHT, velocity M1 is negative, velocity M2 is positive */
 #define Robot_Clockwise()\
 	M1_Backward();\
 	M2_Forward();
 
+/* ROTATE LEFT, velocity M1 is positive, velocity M2 is negative */
 #define Robot_AntiClockwise()\
 	M1_Forward();\
 	M2_Backward();
 
-#define Stop_Motor()\
-	PWM_TIMx->CCR1   = 0;\
-	PWM_TIMx->CCR2   = 0;
 
-void 	Robot_Run(double duty_right, double duty_left);
+#define Stop_Motor()\
+	PWM_TIMx->CCR1 = 0;\
+	PWM_TIMx->CCR2 = 0;
+
+void 	Robot_Run(double duty_v1, double duty_v2);
 void 	Encoder_Config(void);
 
 #endif

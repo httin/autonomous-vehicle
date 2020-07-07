@@ -107,21 +107,24 @@ typedef struct Time{
 
 typedef	struct  DCMotor{
 	/* PID parameters */
-	double		Kp;
-	double 		Ki;
-	double		Kd;
+	double    Kp;
+	double    Ki;
+	double    Kd;
 	/* Input and Output of PID controller */
-	double		Set_Vel;
-	double 		Current_Vel; // RPM
-	double 		Pre_Error; // e(k-1)
-	double 		Pre2_Error; // e(k-2)
-	double		Pre_PID; // u(k-1)
-	double		PID_Out; // u(k)
+	double    Set_Vel;
+	double    Current_Vel; // RPM
+	double    Error; // e(k)
+	double    Pre_Error; // e(k-1)
+	double    Pre2_Error; // e(k-2)
+	double    Pre_PID; // u(k-1)
+	double    PID_Out; // u(k)
 	/* Encoder parameters */
-	uint16_t  	Enc;
-	uint16_t 	PreEnc;
-	uint8_t		OverFlow;
-	uint8_t		Change_State; // 0 or 1
+	int32_t   Total_Encoder;
+	int32_t   Diff_Encoder;
+	uint16_t  Enc;
+	uint16_t  PreEnc;
+	uint8_t   OverFlow;
+	uint8_t   Change_State; // 0 or 1
 } DCMotor;
 
 /* Triangle function */
@@ -207,7 +210,6 @@ typedef	struct Vehicle
 	int	               SendData_Ind;
 	/* Calibration variables */
 	uint16_t           Distance;
-	uint8_t	           TotalDistance;
 	char               ManualCtrlKey;
 } Vehicle;
 
@@ -277,7 +279,6 @@ void					Time_ParametersInit(Time *pTime, uint32_t sample_time_init, uint32_t se
 void					Time_SampleTimeUpdate(Time *pTime, uint32_t sample_time_update);
 #define 				Time_SendTimeUpdate(pTime, send_time_in_ms)	(pTime)->send_time = (send_time_in_ms); 
 /*------------ Vehicle status functions ----------*/
-void					Veh_ParametersInit(Vehicle *pveh);
 void					Veh_UpdateVehicleFromKey(Vehicle *pveh);
 void					Veh_CheckStateChange(DCMotor *ipid, uint8_t State);
 #define 				Veh_UpdateMaxVelocity(pveh, MaxVelocity)	(pveh)->Max_Velocity = (MaxVelocity);
@@ -289,7 +290,6 @@ void 					PID_Compute(DCMotor *ipid);
 void 					PID_ParametersInitial(DCMotor *ipid);
 #define 				PID_UpdateSetVel(DCMotor, SetVal)	(DCMotor)->Set_Vel = (SetVal) 
 void 					PID_ParametersUpdate(DCMotor *ipid, double Kp, double Ki, double Kd);
-void 					PID_ResetEncoder(DCMotor *ipid);
 void 					PID_ResetPID(DCMotor *ipid);
 /* -------Send and Receive data function------------ */
 void                    GetMessageInfo(char *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL], char character);

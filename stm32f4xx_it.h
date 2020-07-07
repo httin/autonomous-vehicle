@@ -70,8 +70,10 @@ void DMA1_Stream5_IRQHandler(void); // USART2 RX - Rover GPS vs VXL
 void USART6_IRQHandler(void); 
 void DMA2_Stream2_IRQHandler(void); // USART6 RX - Lora PC vs Lora VXL
 
+#ifdef ENCODER_IT
 void TIM3_IRQHandler(void); // Overflow encoder interrupt
 void TIM4_IRQHandler(void); // Overflow encoder interrupt
+#endif
 void TIM5_IRQHandler(void); // Interrupt for IMU calibration
 /****************************************/
 

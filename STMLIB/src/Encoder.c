@@ -32,14 +32,17 @@ static void M1_Encoder_Config(void)
 	TIM_ARRPreloadConfig(M1_TIMx, ENABLE);
 	TIM_EncoderInterfaceConfig(M1_TIMx, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
 	TIM_TimeBaseInit(M1_TIMx, &En_TIM_BaseStruct);
+#ifdef ENCODER_IT
 	/* Config interrupt */
 	En_NVIC_Struct.NVIC_IRQChannel = M1_TIMx_IRQn;
 	En_NVIC_Struct.NVIC_IRQChannelPreemptionPriority = 2;
 	En_NVIC_Struct.NVIC_IRQChannelSubPriority = 0;
 	En_NVIC_Struct.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&En_NVIC_Struct);
-	TIM_ITConfig(M1_TIMx, TIM_IT_Update,ENABLE);
+	TIM_ITConfig(M1_TIMx, TIM_IT_Update, ENABLE);
+#endif
 	TIM_Cmd(M1_TIMx, ENABLE);
+	TIM_SetCounter(M1_TIMx, 0);
 }
 
 /** @Brief: Configuration of Encoder for Motor 2
@@ -67,7 +70,8 @@ static void M2_Encoder_Config(void)
 	TIM_TimeBaseInit(M2_TIMx, &En_TIM_BaseStruct);
 	TIM_ARRPreloadConfig(M2_TIMx, ENABLE);
 	TIM_EncoderInterfaceConfig(M2_TIMx, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
-	TIM_TimeBaseInit(M2_TIMx,&En_TIM_BaseStruct);
+	TIM_TimeBaseInit(M2_TIMx, &En_TIM_BaseStruct);
+#ifdef ENCODER_IT
 	/* Config interrupt */
 	En_NVIC_Struct.NVIC_IRQChannel = M2_TIMx_IRQn;
 	En_NVIC_Struct.NVIC_IRQChannelPreemptionPriority = 2;
@@ -75,7 +79,9 @@ static void M2_Encoder_Config(void)
 	En_NVIC_Struct.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&En_NVIC_Struct);
 	TIM_ITConfig(M2_TIMx, TIM_IT_Update, ENABLE);
-	TIM_Cmd(M2_TIMx,ENABLE);
+#endif
+	TIM_Cmd(M2_TIMx, ENABLE);
+	TIM_SetCounter(M2_TIMx, 0);
 }
 
 /** @Brief:  PWM1 Config 2 pins
@@ -128,15 +134,34 @@ static void DirPinConfig(void)
 	En_GPIO_Struct.GPIO_OType	= GPIO_OType_PP;
 	En_GPIO_Struct.GPIO_PuPd	= GPIO_PuPd_NOPULL;
 	En_GPIO_Struct.GPIO_Speed	= GPIO_Speed_50MHz;
-	GPIO_Init(Dir_GPIOx,&En_GPIO_Struct);
+	GPIO_Init(Dir_GPIOx, &En_GPIO_Struct);
 }
 
-void Robot_Run(double duty_right, double duty_left)
+void Robot_Run(double duty_v1, double duty_v2)
 {
-	duty_right = fabs(duty_right);
-	duty_left  = fabs(duty_left);
-	PWM_TIMx->CCR1 = (uint16_t)((duty_right * Frequency_20KHz) / 100);
-	PWM_TIMx->CCR2 = (uint16_t)((duty_left * Frequency_20KHz) / 100);
+	if (duty_v1 > 0 && duty_v2 > 0) // v1 > 0 && v2 > 0
+	{
+		Robot_Forward();
+		PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * Frequency_20KHz) / 100);
+		PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * Frequency_20KHz) / 100);
+	} else if (duty_v1 > 0 && duty_v2 < 0) // v1 > 0 && v2 < 0
+	{
+		Robot_AntiClockwise();
+		PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * Frequency_20KHz) / 100);
+		PWM_TIMx->CCR2 = (uint16_t)((-duty_v2 * Frequency_20KHz) / 100);
+	} else if (duty_v1 < 0 && duty_v2 > 0) // v1 < 0 && v2 > 0
+	{
+		Robot_Clockwise();
+		PWM_TIMx->CCR1 = (uint16_t)((-duty_v1 * Frequency_20KHz) / 100);
+		PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * Frequency_20KHz) / 100);
+	} else if (duty_v1 < 0 && duty_v2 < 0) // v1 < 0 && v2 < 0
+	{
+		Robot_Backward();
+		PWM_TIMx->CCR1 = (uint16_t)((-duty_v1 * Frequency_20KHz) / 100);
+		PWM_TIMx->CCR2 = (uint16_t)((-duty_v2 * Frequency_20KHz) / 100);
+	} else {
+		Stop_Motor();
+	}
 }
 
 void Encoder_Config(void)
