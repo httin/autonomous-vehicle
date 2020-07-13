@@ -35,7 +35,7 @@
  * @pinout: PC6: TX -> RX Lora-MCU
  *			PC7: RX -> TX Lora-MCU 	
  */
-#define		U6_Baudrate						19200
+#define		U6_Baudrate						115200
 #define 	U6_GPIOx						GPIOC
 #define 	U6_GPIO_Pin_Tx        			GPIO_Pin_6
 #define 	U6_GPIO_Pin_Rx					GPIO_Pin_7

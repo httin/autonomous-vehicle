@@ -684,8 +684,6 @@ void DMA2_Stream2_IRQHandler(void)
 							U6_SendData(FeedBack(U6_TxBuffer, (char *)u6_message));
 						}
 					}
-					Veh_CheckStateChange(&M1, GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M1));
-					Veh_CheckStateChange(&M2, GPIO_ReadOutputDataBit(Dir_GPIOx, Dir_GPIO_Pin_M2));
 					break;
 			} // end switch command
 		} // end Veh_SplitMsg

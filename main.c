@@ -29,7 +29,7 @@ TIM_TimeBaseInitTypeDef			Main_TIM_Struct;
 static void TimerInterruptConfig(TIM_TypeDef *TIMx)   // ms
 {
 	GetTIMxClockCmd(TIMx, ENABLE);
-	NVIC_InitTypeDef Main_NVIC_Struct;
+	NVIC_InitTypeDef NVIC_InitStruct;
 	
 	Main_TIM_Struct.TIM_Prescaler  			=  50000 - 1; //0.5ms
 	Main_TIM_Struct.TIM_Period     			=  0;
@@ -37,11 +37,11 @@ static void TimerInterruptConfig(TIM_TypeDef *TIMx)   // ms
 	Main_TIM_Struct.TIM_CounterMode  		=  TIM_CounterMode_Up;
 	TIM_TimeBaseInit(TIMx, &Main_TIM_Struct);
 	
-	Main_NVIC_Struct.NVIC_IRQChannel  		=  GetIRQHandlerFromTIMxCC(TIMx);
-	Main_NVIC_Struct.NVIC_IRQChannelCmd 	=  ENABLE;
-	Main_NVIC_Struct.NVIC_IRQChannelPreemptionPriority = 3;
-	Main_NVIC_Struct.NVIC_IRQChannelSubPriority = 2;
-	NVIC_Init(&Main_NVIC_Struct); 
+	NVIC_InitStruct.NVIC_IRQChannel  		=  GetIRQHandlerFromTIMxCC(TIMx);
+	NVIC_InitStruct.NVIC_IRQChannelCmd 	=  ENABLE;
+	NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 3;
+	NVIC_InitStruct.NVIC_IRQChannelSubPriority = 2;
+	NVIC_Init(&NVIC_InitStruct); 
 }
 
 void StartTimer(TIM_TypeDef *TIMx, uint32_t DelayTime)
@@ -81,13 +81,13 @@ void GPS_SaveManual(void)
 	Flash.Length = 0;
 	Flash.Length += ToChar(2,&Flash.WriteInBuffer[Flash.Length],2);
 	Flash.WriteInBuffer[Flash.Length++] = (uint8_t)',';
-	Flash.Length += ToChar(10.2565,&Flash.WriteInBuffer[Flash.Length],4);
+	Flash.Length += ToChar(10.2565,&Flash.WriteInBuffer[Flash.Length], 4);
 	Flash.WriteInBuffer[Flash.Length++] = (uint8_t)',';
-	Flash.Length += ToChar(106.3256,&Flash.WriteInBuffer[Flash.Length],4);
+	Flash.Length += ToChar(106.3256,&Flash.WriteInBuffer[Flash.Length], 4);
 	Flash.WriteInBuffer[Flash.Length++] = (uint8_t)',';
-	Flash.Length += ToChar(10.3536,&Flash.WriteInBuffer[Flash.Length],4);
+	Flash.Length += ToChar(10.3536,&Flash.WriteInBuffer[Flash.Length], 4);
 	Flash.WriteInBuffer[Flash.Length++] = (uint8_t)',';
-	Flash.Length += ToChar(106.1156,&Flash.WriteInBuffer[Flash.Length],4);
+	Flash.Length += ToChar(106.1156,&Flash.WriteInBuffer[Flash.Length], 4);
 	EraseMemory(FLASH_Sector_6);
 	WriteToFlash(&Flash,FLASH_Sector_6,FLASH_GPSPara_BaseAddr);
 }
@@ -295,7 +295,6 @@ static void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx)
 
 	Motor->Total_Encoder += Motor->Diff_Encoder;
 	Motor->Current_Vel = (((double)Motor->Diff_Encoder / 39400) * 60) / Timer.T; // rpm
-	//Motor->Current_Vel = (Motor->Current_Vel < 0) ? 0 : Motor->Current_Vel;
 }
 
 /************************************************************************
@@ -326,8 +325,6 @@ static void Parameters_Init(void)
 	};*/
 	/*------------PID Parameter Init-------------*/
 	PID_ReadParametersFromFlash();
-	PID_ParametersInitial(&M1);
-	PID_ParametersInitial(&M2);
 	/*------------Fuzzy parametes Init ----------*/
 	Fuzzy_ParametersInit();
 	/*------------------AngleControl-------------*/

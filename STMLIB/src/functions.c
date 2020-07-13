@@ -35,30 +35,21 @@ void	Status_ParametersInit(Status *pStatus)
 **/
 void PID_Compute(DCMotor *ipid)
 {
-	ipid->Error = ipid->Set_Vel - ipid->Current_Vel;
+	ipid->Error = ipid->Set_Vel - ipid->Current_Vel; // sample e(k)
 
 	ipid->PID_Out = ipid->Pre_PID + 
 		ipid->Kp * (ipid->Error - ipid->Pre_Error) + 
 		0.5 * ipid->Ki * Timer.T * (ipid->Error + ipid->Pre_Error) + 
 		(ipid->Kd / Timer.T) * (ipid->Error - 2 * ipid->Pre_Error + ipid->Pre2_Error);
 
-	if(ipid->PID_Out < -100)
+	if (ipid->PID_Out < -100)
 		ipid->PID_Out = -100;
-	else if(ipid->PID_Out > 100)
+	else if (ipid->PID_Out > 100)
 		ipid->PID_Out = 100;
 
 	ipid->Pre2_Error = ipid->Pre_Error; // e(k-2) = e(k-1)
 	ipid->Pre_Error = ipid->Error; // e(k-1) = e(k)
 	ipid->Pre_PID = ipid->PID_Out; // u(k-1) = u(k)
-}
-
-/** @brief  : First initial PID parameters
-**	@retval : None
-**/
-void PID_ParametersInitial(DCMotor *ipid)
-{
-	/* M1, M2 were initialized as a global variable */
-	ipid->Change_State = 1;
 }
 
 /** @brief  : PID update parameters function
@@ -71,7 +62,7 @@ void PID_ParametersUpdate(DCMotor *ipid, double Kp, double Ki, double Kd)
 	ipid->Kd = Kd;
 }
 
-/** @brief  : PID reset PID
+/** @brief  : reset PID
 **	@retval : None
 **/
 void	PID_ResetPID(DCMotor *ipid)
@@ -177,16 +168,6 @@ enum_Error	Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_
 	else
 		return LORA_WrongCheckSum;
 }
-
-void Veh_CheckStateChange(DCMotor *ipid, uint8_t State)
-{
-	if(ipid->Change_State != State)
-	{
-		PID_ResetPID(ipid);
-		ipid->Change_State = State;
-	}
-}
-
 
 /* ----------------------- GPS function ---------------------------------------*/
 
