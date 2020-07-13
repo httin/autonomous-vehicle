@@ -175,7 +175,7 @@ void SendStatusData(void)
 	U6_SendData(Veh.SendData_Ind);
 }
 
-void SendData_0(void)
+void SendData_0(void) /* Vehicle Information */
 {
 	Veh.SendData_Ind = 0;
 	Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VINFO,0,");
@@ -202,24 +202,24 @@ void SendData_0(void)
 	U6_SendData(Veh.SendData_Ind);
 }
 
-void SendData_1(void)
+void SendData_1(void) /* GPS Information */
 {
 	Veh.SendData_Ind = 0;
 	Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VINFO,1,");
 
 	if(VehStt.GPS_ValidGPS)
 	{
-        Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "Y,");
+        Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "Y,"); // data valid
 	}
 	else
 	{
-        Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "N,");
+        Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "N,"); // data unvalid
 	}
-	Veh.SendData_Ind += ToChar(GPS_NEO.GPS_Quality, &U6_TxBuffer[Veh.SendData_Ind], 1);
+	Veh.SendData_Ind += ToChar(GPS_NEO.GPS_Quality, &U6_TxBuffer[Veh.SendData_Ind], 1); // GPS rover quality
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.Latitude, &U6_TxBuffer[Veh.SendData_Ind], 13);
+	Veh.SendData_Ind += ToChar(GPS_NEO.Latitude, &U6_TxBuffer[Veh.SendData_Ind], 13); // GPS Latitude
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.Longitude, &U6_TxBuffer[Veh.SendData_Ind], 13);
+	Veh.SendData_Ind += ToChar(GPS_NEO.Longitude, &U6_TxBuffer[Veh.SendData_Ind], 13); // GPS Longitude
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	uint8_t checksum = LRCCalculate(&U6_TxBuffer[1], Veh.SendData_Ind - 1);
 	U6_TxBuffer[Veh.SendData_Ind++] = ToHex((checksum & 0xF0) >> 4);
@@ -229,7 +229,7 @@ void SendData_1(void)
 	U6_SendData(Veh.SendData_Ind);
 }
 
-void SendData_2(void)
+void SendData_2(void) /* Stanley Information */
 {
 	Veh.SendData_Ind = 0;
 	Veh.SendData_Ind += append_string_to_buffer(U6_TxBuffer, "$VINFO,2,");
@@ -317,7 +317,7 @@ static void Parameters_Init(void)
 	/*-----------------Error Init ---------------*/
 	Veh_Error.Error_Index = 0;
 	/*-----------------Timer Init ---------------*/
-	Time_ParametersInit(&Timer, SAMPLE_TIME_50MS, SEND_TIME_1S);
+	Time_ParametersInit(&Timer, 50, 1000);
 	/* ------------------ Status ------------------ */
 	Status_ParametersInit(&VehStt);
 	/*VehStt = (Status) {
@@ -491,8 +491,8 @@ int main(void)
 						{
 							if((M1.Current_Vel == 0) && (M2.Current_Vel == 0))
 							{
-								U1_SendData(FeedBack(U1_TxBuffer,"$MAGST"));
-								U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+								U1_SendData(FeedBack(U1_TxBuffer, "$MAGST"));
+								U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,1"));
 								VehStt.IMU_Calib_Finish = Check_NOK;
 							}
 						}
@@ -518,7 +518,6 @@ int main(void)
 					}
 					break;
 			}
-			//M1.OverFlow = M2.OverFlow = 1;
 			VehStt.Veh_Sample_Time = Check_NOK;
 		}
 		
@@ -529,10 +528,11 @@ int main(void)
 		{
 			if(VehStt.Veh_Send_Data)
 			{
+				//SendData_0();
 				while(!DMA_GetFlagStatus(DMA2_Stream6, DMA_FLAG_TCIF6)); // transfer complete
-				SendData_0();
 				SendData_1();
-				SendData_2();
+				//while(!DMA_GetFlagStatus(DMA2_Stream6, DMA_FLAG_TCIF6)); // transfer complete
+				//SendData_2();
 			}
 			VehStt.Veh_Send_Data = Check_NOK;
 		}

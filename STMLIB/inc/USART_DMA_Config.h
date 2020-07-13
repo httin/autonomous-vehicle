@@ -30,7 +30,7 @@
 #define		U2_GPIO_PinSourceRx				GPIO_PinSource6
 #define 	U2_RCC_AHB1Periph_GPIOx			RCC_AHB1Periph_GPIOD
 /*-------- Hardware config USART6 (can change) ---------
- * @brief:	Baudrate 19200
+ * @brief:	Baudrate 115200
  *			Used to communicate between LORA-MCU & LORA-PC (C# interface)
  * @pinout: PC6: TX -> RX Lora-MCU
  *			PC7: RX -> TX Lora-MCU 	

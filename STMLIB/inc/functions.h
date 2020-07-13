@@ -6,8 +6,6 @@
 #include "USART_DMA_Config.h"
 
 #define    SYSTICK_INTERRUPT_1MS 1000
-#define    SAMPLE_TIME_50MS 50
-#define    SEND_TIME_1S 1000
 
 #define    MESSAGE_ROW 15
 #define    MESSAGE_COL 20

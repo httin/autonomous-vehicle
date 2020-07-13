@@ -726,7 +726,7 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double 
 	pgps->Angle = &Mag;
 	AngleRadian = pgps->Angle->Angle * (double)pi/180;
 	AngleRadian = pi/2 - AngleRadian;
-	VM1 = Wheel_Radius * 2 * pi * M1Velocity/60;	
+	VM1 = Wheel_Radius * 2 * pi * M1Velocity/60; // m/s
 	VM2 = Wheel_Radius * 2 * pi * M2Velocity/60;
 	pgps->Robot_Velocity = (VM1 + VM2)/2;
 	
@@ -739,7 +739,7 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double 
 		posX = pgps->CorX + pgps->dx * pgps->Times * Timer.T;
 		posY = pgps->CorY + pgps->dy * pgps->Times * Timer.T;
 	}
-	// Calculate the fron wheel position
+	// Calculate the front wheel position
 	posX += L * cos(AngleRadian);
 	posY += L * sin(AngleRadian);
 
@@ -752,7 +752,7 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double 
 		d  = sqrt(pow(dx,2) + pow(dy,2));
 		if(i == 0)
 		{
-			dmin 	= d;
+			dmin = d;
 			index = i;
 		}
 		else
@@ -764,10 +764,11 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double 
 			}
 		}
 	}
+
 	if(index > pgps->NbOfP - 1)
 		index -=1;
 	Lf = pgps->K * pgps->Robot_Velocity + Lfc;
-		while((Lf > L) && (index + 1 < pgps->NbOfP))
+	while((Lf > L) && (index + 1 < pgps->NbOfP))
 	{
 		dx = posX - pgps->P_X[index];
 		dy = posY - pgps->P_Y[index];

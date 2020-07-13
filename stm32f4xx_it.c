@@ -492,7 +492,7 @@ void DMA2_Stream2_IRQHandler(void)
 					{
 						if(Veh.Mode == Auto_Mode)
 						{
-							Veh_UpdateMaxVelocity(&Veh,MPS2RPM(GetValueFromString(&U6.Message[2][0])));
+							Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[2][0])));
 							GPS_NEO.K = GetValueFromString(&U6.Message[3][0]);
 							GPS_NEO.Step = GetValueFromString(&U6.Message[4][0]);
 							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
