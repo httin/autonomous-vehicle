@@ -869,14 +869,14 @@ enum_Status	GPS_HeaderCompare(uint8_t *s1, char Header[5])
 	}
 	return Check_OK;
 }
-
+                                                       
 /** @brief  : Get message from NMEA protocol
 **  @agr    : GPS and Inputmessage
 **  @retval : None
 **/
 enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSAGE_ROW][MESSAGE_COL])
 {
-	int Message_Index = 0, GxGLL_Index = 0, GxGGA_Index = 0, Length = 0;
+	int Message_Index = 0, GxGLL_Index = -1, GxGGA_Index = -1, Length = 0;
 	while(inputmessage[Message_Index] != 0 && (Message_Index < ROVER_RX_BUFFERSIZE))
 	{
 		/* Because GxGGA come before GxGLL */
@@ -907,7 +907,7 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 		++Message_Index;
 	}
 
-	if(GxGLL_Index != 0)
+	if(GxGLL_Index != -1)
 	{
 		Length = LengthOfLine(&inputmessage[GxGLL_Index]);
 		GetMessageInfo( (char *)&inputmessage[GxGLL_Index], result, ',');
@@ -928,7 +928,7 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 	} else
 		return Veh_ReadGxGLLMessage_Err;
 
-	if(GxGGA_Index != 0)
+	if(GxGGA_Index != -1)
 	{
 		Length = LengthOfLine(&inputmessage[GxGGA_Index]);
 		GetMessageInfo( (char *)&inputmessage[GxGGA_Index], result, ',');

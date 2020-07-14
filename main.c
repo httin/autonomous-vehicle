@@ -528,11 +528,11 @@ int main(void)
 		{
 			if(VehStt.Veh_Send_Data)
 			{
-				//SendData_0();
+				SendData_0();
 				while(!DMA_GetFlagStatus(DMA2_Stream6, DMA_FLAG_TCIF6)); // transfer complete
 				SendData_1();
-				//while(!DMA_GetFlagStatus(DMA2_Stream6, DMA_FLAG_TCIF6)); // transfer complete
-				//SendData_2();
+				while(!DMA_GetFlagStatus(DMA2_Stream6, DMA_FLAG_TCIF6)); // transfer complete
+				SendData_2();
 			}
 			VehStt.Veh_Send_Data = Check_NOK;
 		}

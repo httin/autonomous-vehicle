@@ -350,7 +350,7 @@ void DMA2_Stream2_IRQHandler(void)
 			{
 				/*----------------- Vehicle Config -------------------*/
 				case None:
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,?"));
 					break;
 				
 				case Vehicle_Config:
@@ -400,8 +400,8 @@ void DMA2_Stream2_IRQHandler(void)
 						Robot_AntiClockwise();
 						Veh.Mode = Calib_Mode;
 						VehStt.Veh_Calib_Flag = Check_OK; // Update Calibration IMU status
-						PID_UpdateSetVel(&M1, 50);
-						PID_UpdateSetVel(&M2, 50);
+						PID_UpdateSetVel(&M1, 75);
+						PID_UpdateSetVel(&M2, 75);
 						StartTimer(TIM5, 3000);
 					}
 					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
