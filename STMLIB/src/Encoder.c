@@ -139,22 +139,22 @@ static void DirPinConfig(void)
 
 void Robot_Run(double duty_v1, double duty_v2)
 {
-	if (duty_v1 > 0 && duty_v2 > 0) // v1 > 0 && v2 > 0
+	if (duty_v1 >= 0 && duty_v2 >= 0) // v1 > 0 && v2 > 0
 	{
 		Robot_Forward();
 		PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * Frequency_20KHz) / 100);
 		PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * Frequency_20KHz) / 100);
-	} else if (duty_v1 > 0 && duty_v2 < 0) // v1 > 0 && v2 < 0
+	} else if (duty_v1 >= 0 && duty_v2 <= 0) // v1 > 0 && v2 < 0
 	{
 		Robot_AntiClockwise();
 		PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * Frequency_20KHz) / 100);
 		PWM_TIMx->CCR2 = (uint16_t)((-duty_v2 * Frequency_20KHz) / 100);
-	} else if (duty_v1 < 0 && duty_v2 > 0) // v1 < 0 && v2 > 0
+	} else if (duty_v1 <= 0 && duty_v2 >= 0) // v1 < 0 && v2 > 0
 	{
 		Robot_Clockwise();
 		PWM_TIMx->CCR1 = (uint16_t)((-duty_v1 * Frequency_20KHz) / 100);
 		PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * Frequency_20KHz) / 100);
-	} else if (duty_v1 < 0 && duty_v2 < 0) // v1 < 0 && v2 < 0
+	} else if (duty_v1 <= 0 && duty_v2 <= 0) // v1 < 0 && v2 < 0
 	{
 		Robot_Backward();
 		PWM_TIMx->CCR1 = (uint16_t)((-duty_v1 * Frequency_20KHz) / 100);

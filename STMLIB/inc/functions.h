@@ -22,12 +22,13 @@ typedef enum
 typedef enum{
 	Veh_NoneError = 0,
 
-	Veh_ReadGxGLLMessage_Err,		// GPS
-	Veh_ReadGxGGAMessage_Err,		// GPS
-	Veh_GxGLLCheckSum_Err,			// GPS: GxGLL CheckSum Error
-	Veh_GxGGACheckSum_Err,			// GPS: GxGGA Checksum Error
-	Veh_InvalidGxGLLMessage_Err,	// GPS
-
+	GPS_DataUnvalid,
+	GPS_GxGGAMessage_Err,		// GPS
+	GPS_GxGGACheckSum_Err,		// GPS: GxGGA Checksum Error
+#ifdef GxGLL
+	GPS_GxGLLMessage_Err,		// GPS
+	GPS_GxGLLCheckSum_Err,		// GPS: GxGLL CheckSum Error
+#endif
 	LORA_WrongCheckSum, // Lora: message was received from PC is wrong
 	IMU_WrongMessage,  // IMU: Receive wrong message format, see IMU_GetValueFromMessage()
 }enum_Error;
@@ -74,20 +75,19 @@ typedef enum{
  *							Define Struct 							*
  ********************************************************************/
 typedef struct Status{
-	enum_Status 		IMU_FirstSetAngle;			// 0. IMU first received angle after turning on
-	enum_Status			Veh_Sample_Time;			// 1. Vehicle sample time finished
-	enum_Status			Veh_Send_Data;				// 2. Vehicle send data time finished
-	enum_Status			GPS_Coordinate_Received;	// 3. 
-	enum_Status			GPS_ValidGPS;				// 4.
-	enum_Status			Veh_Enable_SendData;		// 5. Flag to ENABLE send data from vehicle, set/unset by F7/F8
-	enum_Status			Veh_Calib_Flag;				// 6.
-	enum_Status			Veh_Timer_Finish;			// 8. Timer 5 Stop 
-	enum_Status			Veh_Timer_Start;			// 9. Timer 5 Start 
-	enum_Status			IMU_Calib_Finish;			// 10. Calibration IMU 
-	enum_Status			Veh_Auto_Flag;				// 12.
-	enum_Status			GPS_Start_Receive_PathCor;	// 13. Starting receive map coordinate from C#
-	enum_Status			GPS_SelfUpdatePosition_Flag;// 14.
-	enum_Status			GPS_FirstGetPosition;		// 15.
+	enum_Status 		IMU_FirstGetAngle;			// IMU first time received angle after turning on
+	enum_Status			Veh_Sample_Time;			// Vehicle sample time finished
+	enum_Status			Veh_Send_Data;				// Vehicle send data time finished
+	enum_Status			Veh_Enable_SendData;		// Flag to ENABLE send data from vehicle, set/unset by F7/F8
+	enum_Status			GPS_DataValid;				// Set when new gps packet is none error
+	enum_Status			Veh_Calib_Flag;				//
+	enum_Status			Veh_Timer_Finish;			// Timer 5 Stop 
+	enum_Status			Veh_Timer_Start;			// Timer 5 Start 
+	enum_Status			IMU_Calib_Finish;			// Calibration IMU 
+	enum_Status			Veh_Auto_Flag;				//  
+	enum_Status			GPS_Start_Receive_PathCor;	// Starting receive map coordinate from C#
+	enum_Status			GPS_SelfUpdatePosition_Flag;// 
+	enum_Status			GPS_FirstGetPosition;		// 
 } Status;
 
 typedef struct Error{
@@ -157,7 +157,7 @@ typedef struct IMU{
 } IMU;
 
 typedef struct GPS{
-	/* Robot state */
+	/* Robot statictis */
 	double              CorX;
 	double              CorY;
 	double              Pre_CorX;
@@ -166,10 +166,12 @@ typedef struct GPS{
 	double              dy;
 	int                 NewDataAvailable;
 	int                 Times;
-	IMU                 *Angle;
-	int                 P_Yaw_Index;
+	int                 index_of_reference_point;
+	enum_Status         Goal_Flag;
+	double              goal_radius; // radius between goal and current position
 	double              efa;
 	/* Stanley control variables */
+	double              heading_angle;
 	double              Thetae;
 	double              Thetad;
 	double              Delta_Angle;
@@ -177,15 +179,6 @@ typedef struct GPS{
 	double              Step;
 	double              Robot_Velocity; // (Vr + Vl) / 2
 	double              dmin;
-	/* Goal radius reached */
-	enum_Status         Goal_Flag;
-	/* GPS NEO M8P input coordinates */
-	double              Latitude;
-	double              Longitude;
-	int                 NbOfWayPoints;
-	enum_GPS_Quality    GPS_Quality;
-	int                 NbOfP;
-	int                 Cor_Index;
 	/* Buffer read and write data */
 	double              Path_X[20];
 	double              Path_Y[20];
@@ -193,22 +186,27 @@ typedef struct GPS{
 	double              P_X[MAX_NUM_COORDINATE];  
 	double              P_Y[MAX_NUM_COORDINATE];  
 	double              P_Yaw[MAX_NUM_COORDINATE];
-	/* Error GPS code */
+	/* GPS NEO M8P input coordinates */
+	double              Latitude;
+	double              Longitude;
+	int                 NbOfWayPoints;
+	int                 NbOfP;
+	enum_GPS_Quality    GPS_Quality;
 	enum_Error          GPS_Error;
 } GPS;
 
 typedef	struct Vehicle
 {
 	double             Max_Velocity; // in RPM
-	double             Manual_Velocity;
-	double             Manual_Angle;
+	double             Manual_Velocity; // in RPM
+	double             Manual_Angle; // in degree
 	double             Sensor_Angle;
 	enum_Mode          Mode;
 	enum_Error         Veh_Error;
 	enum_Controller    Controller;
 	int	               SendData_Ind;
 	/* Calibration variables */
-	uint16_t           Distance;
+	uint32_t           Distance;
 	char               ManualCtrlKey;
 } Vehicle;
 
@@ -225,19 +223,20 @@ typedef struct FlashMemory{
 	char  		Message[MESSAGE_ROW][MESSAGE_COL];
 } FlashMemory;
 
-#define					pi							(double)3.14159265358979
-#define  				K1 										1/(2*pi)
-#define					K2										4/pi
-#define					K3										1
-#define					Wheel_Radius 							0.085
-#define					IMU_AngleIndex							17
-#define					FLASH_ProgramType_Byte					VoltageRange_1
-#define					FLASH_ProgramType_HalfWord				VoltageRange_2
-#define					FLASH_ProgramType_Word					VoltageRange_3
-#define					FLASH_ProgramType_DoubleWord			VoltageRange_4
-#define					FLASH_PIDPara_BaseAddr 					0x08060000	// (4 KBytes) (0x08060000 - 0x08060FFF)
-#define					FLASH_FuzPara_BaseAddr					0x08061000	// (4 Kbytes) (0x08061000 - 0x08061FFF)
-#define					FLASH_GPSPara_BaseAddr					0x08040000	// (128 KBytes) 
+#define	           pi                               (double)3.14159265358979
+#define            K1                               1/(2*pi)
+#define	           K2                               4/pi
+#define	           K3                               1
+#define	           Wheel_Radius                     0.085
+#define            DISTANCE_BETWEEN_TWO_WHEELS      0.388;
+#define	           IMU_AngleIndex                   17
+#define	           FLASH_ProgramType_Byte	        VoltageRange_1
+#define	           FLASH_ProgramType_HalfWord       VoltageRange_2
+#define	           FLASH_ProgramType_Word           VoltageRange_3
+#define	           FLASH_ProgramType_DoubleWord     VoltageRange_4
+#define	           FLASH_PIDPara_BaseAddr           0x08060000	// (4 KBytes) (0x08060000 - 0x08060FFF)
+#define	           FLASH_FuzPara_BaseAddr           0x08061000	// (4 Kbytes) (0x08061000 - 0x08061FFF)
+#define	           FLASH_GPSPara_BaseAddr           0x08040000	// (128 KBytes) 
 /* Control Led Macros, doesn't use PD12, PD13 because it's for Encoder M2 */
 #define LED_RED_PIN      GPIO_Pin_14
 #define LED_BLUE_PIN     GPIO_Pin_15
@@ -278,7 +277,6 @@ void					Time_ParametersInit(Time *pTime, uint32_t sample_time_init, uint32_t se
 void					Time_SampleTimeUpdate(Time *pTime, uint32_t sample_time_update);
 #define 				Time_SendTimeUpdate(pTime, send_time_in_ms)	(pTime)->send_time = (send_time_in_ms); 
 /*------------ Vehicle status functions ----------*/
-void					Veh_UpdateVehicleFromKey(Vehicle *pveh);
 #define 				Veh_UpdateMaxVelocity(pveh, MaxVelocity)	(pveh)->Max_Velocity = (MaxVelocity);
 enum_Error              Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL]);
 enum_Command            Veh_MsgToCmd(char *);
@@ -320,10 +318,8 @@ void                    Trapf_Update(trapf *ptrapf, double a1, double a2, double
 void                    Defuzzification_Max_Min(IMU *pimu);
 
 /*--------IMU functions ---------*/
-void                    IMU_ParametesInit(IMU *pimu);
 void                    IMU_UpdateSetAngle(IMU *pimu, double ComAngle);
-void                    IMU_UpdatePreAngle(IMU *pimu);
-void                    IMU_UpdateFuzzyInput(IMU *pimu, double *pSampleTime);
+void                    IMU_UpdateFuzzyInput(IMU *pimu);
 void                    IMU_UpdateFuzzyCoefficients(IMU *pimu, double Ke, double Kedot, double Ku);
 enum_Error              IMU_GetValueFromMessage(IMU *pimu, uint8_t *inputmessage);
 

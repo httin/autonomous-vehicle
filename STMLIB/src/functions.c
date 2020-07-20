@@ -128,35 +128,6 @@ void	Time_SampleTimeUpdate(Time *ptime, uint32_t sample_time_update)
 }
 
 /*------------------------ Vehicle Status Function ----------------------------*/
-void	Veh_UpdateVehicleFromKey(Vehicle *pveh)
-{
-	if(pveh->ManualCtrlKey == 'W')
-	{
-		IMU_UpdateSetAngle(&Mag,0);
-		pveh->Manual_Velocity += 0.2 * pveh->Max_Velocity;
-	}
-	else if(pveh->ManualCtrlKey == 'S')
-	{
-		IMU_UpdateSetAngle(&Mag,0);
-		pveh->Manual_Velocity -= 0.2 * pveh->Max_Velocity;
-	}
-	else if(pveh->ManualCtrlKey == 'D')
-	{
-		pveh->Manual_Angle += 30;
-		if(pveh->Manual_Angle > 180) pveh->Manual_Angle -= 360;
-		IMU_UpdateSetAngle(&Mag,pveh->Manual_Angle);
-	}
-	else if(pveh->ManualCtrlKey == 'A')
-	{
-		pveh->Manual_Angle -= 30;
-		if(pveh->Manual_Angle < -180) pveh->Manual_Angle += 360;
-		IMU_UpdateSetAngle(&Mag,pveh->Manual_Angle);
-	}
-	if(pveh->Manual_Velocity > pveh->Max_Velocity) pveh->Manual_Velocity = pveh->Max_Velocity;
-	else if(pveh->Manual_Velocity < 0) pveh->Manual_Velocity = 0;
-	pveh->ManualCtrlKey = 0;
-}
-
 enum_Error	Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL])
 {
 	int length = LengthOfLine(inputmessage); // Ex: "$ab,cd\r\n" -> length = 6, "$ab,cd\0" -> length = 6
@@ -169,8 +140,6 @@ enum_Error	Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_
 		return LORA_WrongCheckSum;
 }
 
-/* ----------------------- GPS function ---------------------------------------*/
-
 /** @brief  : Seperating each info of message by ','
  ** @agr    : input message, result buffer
  ** @retval : None
@@ -180,23 +149,26 @@ void GetMessageInfo(char *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL], c
 	int col = 0, row = 0, index = 0;
 
 	for(int i = 0; (i < MESSAGE_ROW) && (result[i][0] != 0); ++i)
-		for(int j = 0; (j < MESSAGE_COL) && (result[i][j] != 0); ++j)
+		for(int j = 0; (j < MESSAGE_COL); ++j)
 			result[i][j] = 0;
 
-	while(	(inputmessage[index] != 0x0D) && (inputmessage[index + 1] != 0x0A) 
-			&& (inputmessage[index] != 0) && (index < 100))
+	while(inputmessage[index] != 0)
 	{
-		if(inputmessage[index] != character)
+		if ( (inputmessage[index] != 0x0D) && (inputmessage[index + 1] != 0x0A) )
 		{
-			result[row][col] = inputmessage[index];
-			col++;
-		}
-		else 
-		{
-			row++;
-			col = 0;
-		}
-		index++;
+			if(inputmessage[index] != character)
+			{
+				result[row][col] = inputmessage[index];
+				++col;
+			}
+			else 
+			{
+				++row;
+				col = 0;
+			}
+			++index;
+		} else
+			break;
 	}
 }
 
@@ -307,7 +279,7 @@ uint8_t ToChar(double value, uint8_t *pBuffer, int NbAfDot)
 		}
 	}
     /* value is double */
-	if(value != (int)value)
+	if(value != (uint32_t)value)
 	{
 		pBuffer[strleng] = (uint8_t)'.';
 		strleng++;
@@ -323,8 +295,11 @@ uint8_t ToChar(double value, uint8_t *pBuffer, int NbAfDot)
 }
 
 /** @brief  : LRC calculate
-**  @agr    : Input string array and its lenght
-**  @retval : Result
+**			  Message Format: $<TOPIC>,<CONTENT>,<CHECKSUM>\r\n
+			  Checksum is XOR bytes from start of <TOPIC> to ',' before <CHECKSUM>
+			  Example: $VEHCF,DATA,1,53\r\n
+			  Checksum is 'V ^ E ^ H ^ C ^ F ^ , ^ D ^ A ^ T ^ A ^ , ^ 1 ^ ,' = 53
+**  @retval : 1 byte checksum
 **/
 uint8_t LRCCalculate(uint8_t *pBuffer, int length)
 {
@@ -452,20 +427,12 @@ double MPS2RPM(double vel)
 **/
 double Pi_To_Pi(double angle)
 {
-	double result;
 	if(angle > pi)
-	{
-		result = angle - 2 * pi;
-	}
+		angle = angle - 2 * pi;
 	else if (angle < -pi)
-	{
-		result = angle + 2 * pi;
-	}
-	else
-	{
-		result = angle;
-	}
-	return result;
+		angle = angle + 2 * pi;
+
+	return angle;
 }
 
 double Degree_To_Degree(double angle)
@@ -544,24 +511,10 @@ void GPS_LatLonToUTM(GPS *pgps)
 **/
 void GPS_ParametersInit(GPS *pgps)
 {
-	pgps->CorX = 0;
-	pgps->CorY = 0;
-	pgps->dx = 0;
-	pgps->dy = 0;
-	pgps->NewDataAvailable = 0;
-	pgps->Times = 0;
-	pgps->Robot_Velocity = 0;
-	pgps->NbOfP = 0;
-	pgps->NbOfWayPoints = 0;
-	pgps->Pre_CorX = 0;
-	pgps->Pre_CorY = 0;
 	pgps->Goal_Flag = Check_NOK;
 	pgps->GPS_Error = Veh_NoneError;
 	pgps->K = 0.5;
 	pgps->Step = 0.5;
-	pgps->dmin = 0;
-	pgps->Cor_Index = 0;
-	pgps->efa = 0;
 }
 
 /** @brief  : GPS updates path yaw 
@@ -717,22 +670,21 @@ void GPS_PathPlanning(GPS *pgps, float Step)
 **  @agr    : current pose of the robot and Pathx, Pathy
 **  @retval : Steering angle
 **/
-void GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double M2Velocity)
+void GPS_StanleyControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_rpm)
 {                   /*   Current pose of the robot   / /  Path coordinate  / /  ThetaP  */
-	double dmin = 0,dx,dy,d,posX, posY;
-	int 	 index = 0;
-	double efa, goal_radius, VM1, VM2, AngleRadian;
-	float L = 0.19, Lf=0, Lfc=0.1;
-	pgps->Angle = &Mag;
-	AngleRadian = pgps->Angle->Angle * (double)pi/180;
-	AngleRadian = pi/2 - AngleRadian;
-	VM1 = Wheel_Radius * 2 * pi * M1Velocity/60; // m/s
-	VM2 = Wheel_Radius * 2 * pi * M2Velocity/60;
-	pgps->Robot_Velocity = (VM1 + VM2)/2;
+	double dmin = 0, dx, dy, d, posX, posY;
+	int index = 0;
+	double efa, v1_mps, v2_mps;
+	double L = 0.19, Lf = 0, Lfc = 0.1; // L is distance from (Xc, Yc) to the front wheel
+
+	pgps->heading_angle = pi/2 - Mag.Angle * (double)pi/180; // heading angle of vehicle
+	v1_mps = Wheel_Radius * 2 * pi * v1_rpm / 60; // m/s
+	v2_mps = Wheel_Radius * 2 * pi * v2_rpm / 60;
+	pgps->Robot_Velocity = (v1_mps + v2_mps)/2;
 	
-	// Calculate new Pos if there is no new data from GPS
 	posX = pgps->CorX;
 	posY = pgps->CorY;
+	// Calculate new Pos if there is no new data from GPS
 	if(!pgps->NewDataAvailable)
 	{
 		pgps->Times++;
@@ -740,8 +692,8 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double 
 		posY = pgps->CorY + pgps->dy * pgps->Times * Timer.T;
 	}
 	// Calculate the front wheel position
-	posX += L * cos(AngleRadian);
-	posY += L * sin(AngleRadian);
+	posX += L * cos(pgps->heading_angle);
+	posY += L * sin(pgps->heading_angle);
 
 	//Searching the nearest point
 	//---------------------------
@@ -766,7 +718,7 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double 
 	}
 
 	if(index > pgps->NbOfP - 1)
-		index -=1;
+		index -= 1;
 	Lf = pgps->K * pgps->Robot_Velocity + Lfc;
 	while((Lf > L) && (index + 1 < pgps->NbOfP))
 	{
@@ -776,33 +728,32 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double 
 		index++;
 	}
 	pgps->dmin = dmin;
-	pgps->P_Yaw_Index = index;
-	efa = - ((posX - pgps->P_X[index]) * (cos(AngleRadian + pi/2)) + (posY - pgps->P_Y[index]) * sin(AngleRadian + pi/2));
+	pgps->index_of_reference_point = index;
+	efa = - ((posX - pgps->P_X[index]) * (cos(pgps->heading_angle + pi/2)) + (posY - pgps->P_Y[index]) * sin(pgps->heading_angle + pi/2));
 	pgps->efa = efa;
-	goal_radius = sqrt(pow(posX - pgps->P_X[pgps->NbOfWayPoints - 1],2) + pow(posY - pgps->P_Y[pgps->NbOfWayPoints - 1],2));
-	if(goal_radius <= 1)
+	pgps->goal_radius = sqrt(pow(posX - pgps->P_X[pgps->NbOfWayPoints - 1],2) + pow(posY - pgps->P_Y[pgps->NbOfWayPoints - 1],2));
+	if(pgps->goal_radius <= 1)
 		GPS_NEO.Goal_Flag = Check_OK;
-	pgps->Thetae = Pi_To_Pi(AngleRadian - pgps->P_Yaw[index]);
+	pgps->Thetae = Pi_To_Pi(pgps->heading_angle - pgps->P_Yaw[index]);
 	pgps->Thetad = -atan2(pgps->K* efa, pgps->Robot_Velocity);
-	pgps->Delta_Angle  = (pgps->Thetae + pgps->Thetad)*(double)180/pi;
+	pgps->Delta_Angle  = (pgps->Thetae + pgps->Thetad)*(double)180/pi; // degree
 }
 
 /** @brief  : Controller using Stanley algorithm
 **  @agr    : current pose of the robot and Pathx, Pathy
 **  @retval : Steering angle
 **/
-void GPS_PursuitControl(GPS *pgps, double SampleTime, double M1Velocity, double M2Velocity)
+void GPS_PursuitControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_rpm)
 {                   /*   Current pose of the robot   / /  Path coordinate  / /  ThetaP  */
 	double dmin = 0,dx,dy,d,posX, posY;
-	int 	 index = 0;
-	double Lf, Alpha, goal_radius, VM1, VM2, AngleRadian;
-	float L = 0.2, Lfc = 0.6;
-	pgps->Angle = &Mag;
-	AngleRadian = pgps->Angle->Angle * (double)pi/180;
-	AngleRadian = pi/2 - AngleRadian;
-	VM1 = Wheel_Radius * 2 * pi * M1Velocity/60;	
-	VM2 = Wheel_Radius * 2 * pi * M2Velocity/60;
-	pgps->Robot_Velocity = (VM1 + VM2)/2;
+	int index = 0;
+	double Lf, Alpha, v1_mps, v2_mps;
+	double L = 0.2, Lfc = 0.6;
+
+	pgps->heading_angle = pi/2 - Mag.Angle * (double)pi/180;
+	v1_mps = Wheel_Radius * 2 * pi * v1_rpm/60;	
+	v2_mps = Wheel_Radius * 2 * pi * v2_rpm/60;
+	pgps->Robot_Velocity = (v1_mps + v2_mps)/2;
 	
 	// Calculate new Pos if there is no new data from GPS
 	posX = pgps->CorX;
@@ -814,8 +765,8 @@ void GPS_PursuitControl(GPS *pgps, double SampleTime, double M1Velocity, double 
 		posY = pgps->CorY + pgps->dy * pgps->Times * Timer.T;
 	}
 	// Calculate the fron wheel position
-	posX -= L * cos(AngleRadian);
-	posY -= L * sin(AngleRadian);
+	posX -= L * cos(pgps->heading_angle);
+	posY -= L * sin(pgps->heading_angle);
 	Lf = pgps->K * pgps->Robot_Velocity + Lfc;
 	//Searching the nearest lookahead point
 	//---------------------------
@@ -848,10 +799,10 @@ void GPS_PursuitControl(GPS *pgps, double SampleTime, double M1Velocity, double 
 	if(index+1 > pgps->NbOfP)
 		index = index - 1;
 	pgps->dmin = dmin;
-	pgps->P_Yaw_Index = index;
-	goal_radius = sqrt(pow(posX - pgps->P_X[pgps->NbOfWayPoints - 1],2) + pow(posY - pgps->P_Y[pgps->NbOfWayPoints - 1],2));
-	Alpha = atan2(posY - pgps->P_Y[index], posX - pgps->P_X[index]) - AngleRadian;
-	if(goal_radius <= 1)
+	pgps->index_of_reference_point = index;
+	pgps->goal_radius = sqrt(pow(posX - pgps->P_X[pgps->NbOfWayPoints - 1], 2) + pow(posY - pgps->P_Y[pgps->NbOfWayPoints - 1], 2));
+	Alpha = atan2(posY - pgps->P_Y[index], posX - pgps->P_X[index]) - pgps->heading_angle;
+	if(pgps->goal_radius <= 1)
 		GPS_NEO.Goal_Flag = Check_OK;
 	pgps->Delta_Angle  = atan2(2*L*sin(Alpha), Lf)*180/pi;
 }
@@ -876,37 +827,33 @@ enum_Status	GPS_HeaderCompare(uint8_t *s1, char Header[5])
 **/
 enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSAGE_ROW][MESSAGE_COL])
 {
-	int Message_Index = 0, GxGLL_Index = -1, GxGGA_Index = -1, Length = 0;
-	while(inputmessage[Message_Index] != 0 && (Message_Index < ROVER_RX_BUFFERSIZE))
+	int Message_Index = 0, GxGGA_Index = -1, Length = 0;
+#ifdef USE_GxGLL
+	int GxGLL_Index = -1;
+#endif
+	while(inputmessage[Message_Index] != '\0' && (Message_Index < ROVER_RX_BUFFERSIZE))
 	{
 		/* Because GxGGA come before GxGLL */
 		if(inputmessage[Message_Index] == (uint8_t)'$')
 		{
-			if( 
-#ifdef GPGGA_GPGLL
-				(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGGA")) ||
-#else
-				(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGGA"))
-#endif
-			   )
+			if(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGGA"))
 			{
 				GxGGA_Index = Message_Index;
-			}
-			else if(  
-#ifdef GPGGA_GPGLL
-					 (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GPGLL")) ||
+#ifndef USE_GxGLL
+				break;
 #else
-					 (GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGLL"))
-#endif
-					)
+			}
+			else if(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGLL"))
 			{
 				GxGLL_Index = Message_Index;
 				break;
+#endif
 			}
 		}
 		++Message_Index;
 	}
 
+#ifdef USE_GxGLL
 	if(GxGLL_Index != -1)
 	{
 		Length = LengthOfLine(&inputmessage[GxGLL_Index]);
@@ -922,11 +869,12 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 				GPS_NEO.Longitude = GPS_StringToLng(&result[3][0]); 
 				GPS_LatLonToUTM(&GPS_NEO);
 			} else 
-				return Veh_InvalidGxGLLMessage_Err;
+				return GPS_DataUnvalid;
 		} else 
-			return Veh_GxGLLCheckSum_Err;
+			return GPS_GxGLLCheckSum_Err;
 	} else
-		return Veh_ReadGxGLLMessage_Err;
+		return GPS_GxGLLMessage_Err;
+#endif
 
 	if(GxGGA_Index != -1)
 	{
@@ -936,11 +884,17 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 			inputmessage[GxGGA_Index + Length - 2], 
 			inputmessage[GxGGA_Index + Length - 1]) )
 		{
-			pgps->GPS_Quality = (enum_GPS_Quality) GetValueFromString(&result[6][0]);
+			if ( (pgps->GPS_Quality = (enum_GPS_Quality) GetValueFromString(&result[6][0])) != 0 )
+			{
+				GPS_NEO.Latitude = GPS_StringToLat(&result[2][0]); 
+				GPS_NEO.Longitude = GPS_StringToLng(&result[4][0]); 
+				GPS_LatLonToUTM(&GPS_NEO);
+			} else 
+				return GPS_DataUnvalid;
 		} else 
-			return Veh_GxGGACheckSum_Err;
+			return GPS_GxGGACheckSum_Err;
 	} else 
-		return Veh_ReadGxGGAMessage_Err;
+		return GPS_GxGGAMessage_Err;
 
 	return Veh_NoneError;
 }
@@ -1220,7 +1174,8 @@ void	Defuzzification_Max_Min(IMU *pimu)
 	pBeta[0] = Fuzzy_Min(Trapf(&In1_PB,pimu->Fuzzy_Error),Trapf(&In2_PO,pimu->Fuzzy_Error_dot));
 	num += PB * pBeta[0];
 	den += pBeta[0];
-	if(den == 0) pimu->Fuzzy_Out = 0;
+	if(den == 0) 
+		pimu->Fuzzy_Out = 0;
 	else
 	{
 		pimu->Fuzzy_Out = num / den;
@@ -1231,39 +1186,14 @@ void	Defuzzification_Max_Min(IMU *pimu)
 /*------------------------ Flash read/write function ------------------*/
 
 /*------------------------ IMU functions ------------------*/
-/** @brief  : Get data from IMU message
-**  @agr    : inputmessage, val
-**  @retval : Output value
-**/
-void	IMU_ParametesInit(IMU *pimu)
-{
-	pimu->Angle 					= 0;
-	pimu->Set_Angle 				= 0;
-	pimu->Pre_Angle 				= 0;
-
-	pimu->Fuzzy_Out 				= 0;
-	pimu->Fuzzy_Error 				= 0;
-	pimu->Fuzzy_Error_dot			= 0;
-}
 
 /** @brief  : Update Set angle
 **  @agr    : IMU and Angle
 **  @retval : none
 **/
-void	IMU_UpdateSetAngle(IMU *pimu, double ComAngle)
+void	IMU_UpdateSetAngle(IMU *pimu, double complementary_angle)
 {
-	double temp;
-	temp = pimu->Angle + ComAngle;
-	pimu->Set_Angle = Degree_To_Degree(temp);
-}
-
-/** @brief  : Update previous angle
-**  @agr    : IMU
-**  @retval : none
-**/
-void	IMU_UpdatePreAngle(IMU *pimu)
-{
-	pimu->Pre_Angle = pimu->Angle;
+	pimu->Set_Angle = Degree_To_Degree(pimu->Angle + complementary_angle);
 }
 
 
@@ -1271,15 +1201,17 @@ void	IMU_UpdatePreAngle(IMU *pimu)
 **  @agr    : imu and sampletime
 **  @retval : none
 **/
-void	IMU_UpdateFuzzyInput(IMU *pimu, double *pSampleTime)
+void	IMU_UpdateFuzzyInput(IMU *pimu)
 {
-	pimu->Fuzzy_Error 		= pimu->Set_Angle - pimu->Angle;
-	pimu->Fuzzy_Error_dot = -(pimu->Angle - pimu->Pre_Angle)/(*pSampleTime);
+	pimu->Fuzzy_Error = pimu->Set_Angle - pimu->Angle;
+	pimu->Fuzzy_Error_dot = -(pimu->Angle - pimu->Pre_Angle) / Timer.T;
+
 	if(pimu->Fuzzy_Error > 180) 
 		pimu->Fuzzy_Error -= 360;
 	else if(pimu->Fuzzy_Error < -180) 
 		pimu->Fuzzy_Error += 360;
-	pimu->Fuzzy_Error 		*= pimu->Ke;
+
+	pimu->Fuzzy_Error *= pimu->Ke;
 	pimu->Fuzzy_Error_dot *= pimu->Kedot;
 }
 
@@ -1289,9 +1221,9 @@ void	IMU_UpdateFuzzyInput(IMU *pimu, double *pSampleTime)
 **/
 void	IMU_UpdateFuzzyCoefficients(IMU *pimu, double Ke, double Kedot, double Ku)
 {
-	pimu->Ke		= Ke;
-	pimu->Kedot 	= Kedot;
-	pimu->Ku 		= Ku;
+	pimu->Ke	= Ke;
+	pimu->Kedot = Kedot;
+	pimu->Ku 	= Ku;
 }
 
 /** @brief  : Get data from IMU message, update IMU angle
