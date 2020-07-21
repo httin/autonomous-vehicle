@@ -316,6 +316,7 @@ double                  Trimf(trimf *ptrimf, double x);
 void                    Trimf_Update(trimf *ptrimf, double a1, double a2, double a3);
 void                    Trapf_Update(trapf *ptrapf, double a1, double a2, double a3, double a4);
 void                    Defuzzification_Max_Min(IMU *pimu);
+void                    Defuzzification2_Max_Min(IMU *pimu);
 
 /*--------IMU functions ---------*/
 void                    IMU_UpdateSetAngle(IMU *pimu, double ComAngle);

@@ -232,12 +232,13 @@ void USART1_IRQHandler(void)
 void DMA2_Stream5_IRQHandler(void)
 {
 	DMA_ClearITPendingBit(DMA2_Stream5, DMA_IT_TCIF5);
-	Veh.Veh_Error = IMU_GetValueFromMessage(&Mag, U1_RxBuffer);
-
-	if((!VehStt.IMU_FirstGetAngle))
+	if( (Veh.Veh_Error = IMU_GetValueFromMessage(&Mag, U1_RxBuffer)) == Veh_NoneError )
 	{
-		Mag.Set_Angle = Mag.Angle;
-		VehStt.IMU_FirstGetAngle = Check_OK; // from now on, angle read from IMU won't impact Set Angle
+		if((!VehStt.IMU_FirstGetAngle))
+		{
+			Mag.Set_Angle = Mag.Angle;
+			VehStt.IMU_FirstGetAngle = Check_OK; // from now on, angle read from IMU won't impact Set Angle
+		}
 	}
 	DMA_Cmd(DMA2_Stream5, ENABLE);
 }
@@ -432,22 +433,24 @@ void DMA2_Stream2_IRQHandler(void)
 						else if(Veh.ManualCtrlKey == 'S')
 						{
 							Veh.Manual_Velocity -= 0.1 * Veh.Max_Velocity;
-							if (Veh.Manual_Velocity < -Veh.Max_Velocity)
-								Veh.Manual_Velocity = -Veh.Max_Velocity;
+							if (Veh.Manual_Velocity < 0)
+								Veh.Manual_Velocity = 0;
 						}
 						else if(Veh.ManualCtrlKey == 'D')
 						{
 							Veh.Manual_Angle += 30;
 							if(Veh.Manual_Angle > 180)
 								Veh.Manual_Angle -= 360;
-							IMU_UpdateSetAngle(&Mag, Veh.Manual_Angle);
+							Mag.Set_Angle = Degree_To_Degree(Mag.Set_Angle + 30);
+							//IMU_UpdateSetAngle(&Mag, 30);
 						}
 						else if(Veh.ManualCtrlKey == 'A')
 						{
 							Veh.Manual_Angle -= 30;
 							if(Veh.Manual_Angle < -180) 
 								Veh.Manual_Angle += 360;
-							IMU_UpdateSetAngle(&Mag, Veh.Manual_Angle);
+							Mag.Set_Angle = Degree_To_Degree(Mag.Set_Angle - 30);
+							//IMU_UpdateSetAngle(&Mag, 30);
 						}
 						Veh.ManualCtrlKey = 0;
 						U6_SendData(FeedBack(U6_TxBuffer,"$MACON,1"));

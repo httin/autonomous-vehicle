@@ -143,19 +143,17 @@ static void send_information(void){
 
 	/* -------------------------------- vehicle information -------------------------------- */
 	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "$VINFO,0,");
-	Veh.SendData_Ind += ToChar(M1.Set_Vel, &U6_TxBuffer[Veh.SendData_Ind], 3); // M1 SetVelocity
+	Veh.SendData_Ind += ToChar(M1.Set_Vel, &U6_TxBuffer[Veh.SendData_Ind], 3); // 2. M1 SetVelocity
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(M2.Set_Vel, &U6_TxBuffer[Veh.SendData_Ind], 3); // M2 SetVelocity
+	Veh.SendData_Ind += ToChar(M2.Set_Vel, &U6_TxBuffer[Veh.SendData_Ind], 3); // 3. M2 SetVelocity
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(M1.Current_Vel, &U6_TxBuffer[Veh.SendData_Ind], 3); // M1 velocity
+	Veh.SendData_Ind += ToChar(M1.Current_Vel, &U6_TxBuffer[Veh.SendData_Ind], 3); // 4. M1 velocity
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(M2.Current_Vel, &U6_TxBuffer[Veh.SendData_Ind], 3); // M2 velocity
+	Veh.SendData_Ind += ToChar(M2.Current_Vel, &U6_TxBuffer[Veh.SendData_Ind], 3); // 5. M2 velocity
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(Mag.Set_Angle, &U6_TxBuffer[Veh.SendData_Ind], 3); // Set angle
+	Veh.SendData_Ind += ToChar(Mag.Set_Angle, &U6_TxBuffer[Veh.SendData_Ind], 3); // 6. Set angle
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(Mag.Angle, &U6_TxBuffer[Veh.SendData_Ind], 3); // Current angle
-	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(Veh.Sensor_Angle, &U6_TxBuffer[Veh.SendData_Ind], 3); // Current angle
+	Veh.SendData_Ind += ToChar(Mag.Angle, &U6_TxBuffer[Veh.SendData_Ind], 3); // 7. Current angle
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 
 	checksum = LRCCalculate(&U6_TxBuffer[1], Veh.SendData_Ind - 1);
@@ -191,11 +189,11 @@ static void send_information(void){
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	Veh.SendData_Ind += ToChar(GPS_NEO.Thetad * (180/pi), &U6_TxBuffer[Veh.SendData_Ind],3);
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.Delta_Angle,&U6_TxBuffer[Veh.SendData_Ind],3);
+	Veh.SendData_Ind += ToChar(GPS_NEO.Delta_Angle, &U6_TxBuffer[Veh.SendData_Ind],3);
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.dmin,&U6_TxBuffer[Veh.SendData_Ind],3);
+	Veh.SendData_Ind += ToChar(GPS_NEO.dmin, &U6_TxBuffer[Veh.SendData_Ind],3);
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.efa,&U6_TxBuffer[Veh.SendData_Ind],3);
+	Veh.SendData_Ind += ToChar(GPS_NEO.efa, &U6_TxBuffer[Veh.SendData_Ind],3);
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	
 	checksum = LRCCalculate(&U6_TxBuffer[temp_index + 1], Veh.SendData_Ind - (temp_index + 1));
@@ -363,7 +361,7 @@ int main(void)
 						{
 							VehStt.GPS_DataValid = Check_NOK;
 							if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK) 
-								|| (GPS_NEO.GPS_Quality == Mode_2D_3D)
+								//|| (GPS_NEO.GPS_Quality == Mode_2D_3D)
 								)
 							{
 								OverWritePosition(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
@@ -391,7 +389,7 @@ int main(void)
 							GPS_StanleyCompute();
 						}
 						else if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK)
-							|| (GPS_NEO.GPS_Quality == Mode_2D_3D)
+							//|| (GPS_NEO.GPS_Quality == Mode_2D_3D)
 							)
 						{
 							GPS_NEO.NewDataAvailable = 0;
@@ -422,15 +420,15 @@ int main(void)
 				case Manual_Mode: 
 					IMU_UpdateFuzzyInput(&Mag);
 					Defuzzification_Max_Min(&Mag);
-					if(Mag.Fuzzy_Out >= 0)
+					if(Mag.Fuzzy_Out >= 0) // turn right
 					{
-						PID_UpdateSetVel(&M1, (1 - fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
-						PID_UpdateSetVel(&M2, (1 + fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
+						PID_UpdateSetVel(&M1, (- fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
+						PID_UpdateSetVel(&M2, (+ fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
 					}
-					else
+					else // turn left
 					{
-						PID_UpdateSetVel(&M1, (1 + fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
-						PID_UpdateSetVel(&M2, (1 - fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
+						PID_UpdateSetVel(&M1, (+ fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
+						PID_UpdateSetVel(&M2, (- fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
 					}
 					PID_Compute(&M1);
 					PID_Compute(&M2);
