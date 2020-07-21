@@ -134,14 +134,14 @@ typedef struct trimf{
 } trimf;
 
 /* Trapezoid function */
-typedef struct trapf{
+typedef struct trapf {
 	double h1;
 	double h2;
 	double h3;
 	double h4;
 } trapf;
 
-typedef struct IMU{
+typedef struct IMU {
 	/* Current Angle and Set Angle */
 	double      Angle;
 	double      Set_Angle;
@@ -156,7 +156,7 @@ typedef struct IMU{
 	double      Ku;
 } IMU;
 
-typedef struct GPS{
+typedef struct GPS {
 	/* Robot statictis */
 	double              CorX;
 	double              CorY;
@@ -179,9 +179,6 @@ typedef struct GPS{
 	double              Step;
 	double              Robot_Velocity; // (Vr + Vl) / 2
 	double              dmin;
-	/* Buffer read and write data */
-	double              Path_X[20];
-	double              Path_Y[20];
 #define MAX_NUM_COORDINATE 1000
 	double              P_X[MAX_NUM_COORDINATE];  
 	double              P_Y[MAX_NUM_COORDINATE];  
@@ -302,21 +299,23 @@ double	                GPS_StringToLat(char *inputmessage);
 double                  GPS_StringToLng(char *inputmessage);
 void                    GPS_LatLonToUTM(GPS *pgps);  //Get 2 values of lat-lon and update UTM coordiante to Corx and Cory
 void                    GPS_ClearPathBuffer(GPS *pgps);
-void                    GPS_ClearPathCorBuffer(GPS *pgps);
 void                    GPS_UpdatePathYaw(GPS *pgps);
 void                    GPS_SavePathCoordinateToFlash(GPS *pgps, FlashMemory *pflash);
 void                    GPS_UpdateCoordinateXY(GPS *pgps, double Cor_X, double Cor_Y);
-void                    GPS_PathPlanning(GPS *pgps, float Step);
 enum_Status	            GPS_HeaderCompare(uint8_t *s1, char Header[5]);
 enum_Error              GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,char result[MESSAGE_ROW][MESSAGE_COL]);
 /*--------Fuzzy control-------------------*/
+#define Min(a, b)		((a) < (b)) ? (a) : (b)
+#define Max(a, b)		((a) < (b)) ? (b) : (a)
+#define Prod(a, b)		((a) * (b))
+
 void                    Fuzzy_ParametersInit(void);
 double                  Trapf(trapf *ptrapf, double x);
 double                  Trimf(trimf *ptrimf, double x);
 void                    Trimf_Update(trimf *ptrimf, double a1, double a2, double a3);
 void                    Trapf_Update(trapf *ptrapf, double a1, double a2, double a3, double a4);
-void                    Defuzzification_Max_Min(IMU *pimu);
-void                    Defuzzification2_Max_Min(IMU *pimu);
+double                  Defuzzification_Max_Min(double e, double edot);
+double                  Defuzzification2_Max_Min(double e, double edot);
 
 /*--------IMU functions ---------*/
 void                    IMU_UpdateSetAngle(IMU *pimu, double ComAngle);

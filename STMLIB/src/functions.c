@@ -360,9 +360,9 @@ enum_Command	Veh_MsgToCmd(char *U6_message)
 {
 	if(StringHeaderCompare(U6_message, "$VEHCF"))      
 		return Vehicle_Config;
-	else if(StringHeaderCompare(U6_message, "$TSAMP"))
+	else if(StringHeaderCompare(U6_message, "$TSAMP")) /* TODO */
 		return Sample_Time; 
-	else if(StringHeaderCompare(U6_message, "$TSEND"))
+	else if(StringHeaderCompare(U6_message, "$TSEND")) /* TODO */
 		return SendData_Time; 
 	else if(StringHeaderCompare(U6_message, "$IMUCF"))
 		return IMU_Config; 
@@ -374,7 +374,7 @@ enum_Command	Veh_MsgToCmd(char *U6_message)
 		return Auto_Config; 
 	else if(StringHeaderCompare(U6_message, "$VPLAN"))
 		return Path_Plan; 	 
-	else if(StringHeaderCompare(U6_message, "$FSAVE"))
+	else if(StringHeaderCompare(U6_message, "$FSAVE")) /* TODO */
 		return Flash_Save; 
 	else if(StringHeaderCompare(U6_message, "$KCTRL"))
 		return KeyBoard_Control;
@@ -551,9 +551,9 @@ void GPS_SavePathCoordinateToFlash(GPS *pgps, FlashMemory *pflash)
 	pflash->WriteInBuffer[pflash->Length++] = (uint8_t)',';
 	for(int i = 0; i < pgps->NbOfWayPoints; i++)
 	{
-		pflash->Length += ToChar(pgps->Path_X[i],&pflash->WriteInBuffer[pflash->Length],6);
+		pflash->Length += ToChar(pgps->P_X[i], &pflash->WriteInBuffer[pflash->Length],6);
 		pflash->WriteInBuffer[pflash->Length++] = (uint8_t)',';
-		pflash->Length += ToChar(pgps->Path_Y[i],&pflash->WriteInBuffer[pflash->Length],6);
+		pflash->Length += ToChar(pgps->P_Y[i], &pflash->WriteInBuffer[pflash->Length],6);
 		pflash->WriteInBuffer[pflash->Length++] = (uint8_t)',';
 	}
 	EraseMemory(FLASH_Sector_6);
@@ -618,51 +618,11 @@ double GPS_StringToLng(char *inputmessage)
 	return GPS_DMS_To_DD(s1 + s2);
 }
 
-void GPS_ClearPathCorBuffer(GPS *pgps)
-{
-	for(int i = 0; i < 20; ++i)
-	{
-		pgps->Path_X[i] = pgps->Path_Y[i] = 0;
-	}
-}
-
 void GPS_ClearPathBuffer(GPS *pgps)
 {
 	for(int i = 0; i < MAX_NUM_COORDINATE; ++i)
 	{
 		pgps->P_X[i] = pgps->P_Y[i] = pgps->P_Yaw[i] = 0;
-	}
-}
-
-void GPS_PathPlanning(GPS *pgps, float Step)
-{
-	double temp, a, b;
-	pgps->NbOfP = 0;
-	for(int i = 0; i < pgps->NbOfWayPoints - 1; i++)
-	{
-		a = (pgps->Path_Y[i + 1] - pgps->Path_Y[i]) / (pgps->Path_X[i + 1] - pgps->Path_X[i]);
-		b = pgps->Path_Y[i] - a * pgps->Path_X[i];
-		temp = pgps->Path_X[i];
-		if(pgps->Path_X[i] < pgps->Path_X[i + 1])
-		{
-			while(temp < pgps->Path_X[i + 1])
-			{
-				pgps->P_X[pgps->NbOfP] = temp;
-				pgps->P_Y[pgps->NbOfP] = a * pgps->P_X[pgps->NbOfP] + b;
-				pgps->NbOfP++;
-				temp += Step;
-			}
-		}
-		else
-		{
-			while(temp > pgps->Path_X[i + 1])
-			{
-				pgps->P_X[pgps->NbOfP] = temp;
-				pgps->P_Y[pgps->NbOfP] = a * pgps->P_X[pgps->NbOfP] + b;
-				pgps->NbOfP++;
-				temp -= Step;
-			}
-		}
 	}
 }
 
@@ -900,24 +860,10 @@ enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSA
 }
 
 /*-------------------- Fuzzy control -----------------------*/
-/* Variables of fuzzy control block */
-
 /** @brief  : Find maximum number
 **  @agr    : 2 input values
 **  @retval : Output maximum value
 **/
-#define Min(a, b)		((a) < (b)) ? (a) : (b)
-#define Max(a, b)		((a) < (b)) ? (b) : (a)
-#define Prod(a, b)		((a) * (b))
-
-double Fuzzy_Min(double in1, double in2)
-{
-	double min;
-	min = in1;
-	if(min > in2) min = in2;
-	return min;
-}
-
 double Fuzzy_Max(double *input,int len)
 {
 	double max;
@@ -925,9 +871,7 @@ double Fuzzy_Max(double *input,int len)
 	for(int i = 1; i < len; i++)
 	{
 		if(max < input[i])
-		{
 			max = input[i];
-		}
 	}
 	return max;
 }
@@ -1019,98 +963,59 @@ void	Fuzzy_ParametersInit(void)
 	PB = 0.95;
 }
 
-void	SelectFuzzyOutput(double vel)
+void SelectFuzzyOutput(double vel)
 {
 	/*----------Fuzzy parameter init ------------------*/
 	if (vel < MPS2RPM(0.3))
 	{
 		/*   Input 1 (e = Set_theta - theta)  */
-		// NB : 0.4 - 1
-		In1_NB.h1 = -2;
-		In1_NB.h2 = -1;
-		In1_NB.h3 = -0.22;
-		In1_NB.h4 = -0.17;
-		// NS : 0.15 - 0.45
-		In1_NS.a1 = -0.22;
-		In1_NS.a2 = -0.11;
-		In1_NS.a3 = -0.044;
-		// ZE : 0 - 0.2
-		In1_ZE.a1 = -0.056;
-		In1_ZE.a2 = 0;
-		In1_ZE.a3 = 0.056;
-		// PS : 0.15 - 0.45
-		In1_PS.a1 = 0.044;
-		In1_PS.a2 = 0.11;
-		In1_PS.a3 = 0.22;
-		// PB : 0.4 - 1
-		In1_PB.h1 = 0.17;
-		In1_PB.h2 = 0.22;
-		In1_PB.h3 = 1;
-		In1_PB.h4 = 2;
+		// NB : 
+		Trapf_Update(&In1_NB, -2,-1, -0.22, -0.17);
+		// NS : 
+		Trimf_Update(&In1_NS, -0.22, -0.11, -0.044);
+		// ZE :
+		Trimf_Update(&In1_ZE, -0.1, 0, 0.1);
+		// PS :
+		Trimf_Update(&In1_PS, 0.044, 0.11, 0.22);
+		// PB :
+		Trapf_Update(&In1_PB, 0.15, 0.22, 1, 2);
+
 		/* Input 2 (edot = Set_thetadot - thetadot) */
-		// NE : 0.3 - 1
-		In2_NE.h1 = -2;
-		In2_NE.h2 = -1;
-		In2_NE.h3 = -0.4;
-		In2_NE.h4 = -0.3;
-		// ZE : 0 - 0.4
-		In2_ZE.a1 = -0.4;
-		In2_ZE.a2 = 0;
-		In2_ZE.a3 = 0.4;
-		// PO : 0.3 - 1
-		In2_PO.h1 = 0.3;
-		In2_PO.h2 = 0.4;
-		In2_PO.h3 = 1;
-		In2_PO.h4 = 2;
+		// NE :
+		Trapf_Update(&In2_NE, -2, -1, -0.4, -0.05);
+		// ZE : 
+		Trimf_Update(&In2_ZE, -0.4, 0, 0.4);
+		// PO : 
+		Trapf_Update(&In2_PO, 0.05, 0.4, 1, 2);
 		/* Output value */
-		NB = -0.9;
-		NM = -0.75;
-		NS = -0.5;
+		NB = -0.95;
+		NM = -0.8;
+		NS = -0.4;
 		ZE = 0;
-		PS = 0.5;
-		PM = 0.75;
-		PB = 0.9;
+		PS = 0.4;
+		PM = 0.8;
+		PB = 0.95;
 	}
 	else
 	{
 		/*   Input 1 (e = Set_theta - theta)  */
-		// NB : 0.4 - 1
-		In1_NB.h1 = -2;
-		In1_NB.h2 = -1;
-		In1_NB.h3 = -0.45;
-		In1_NB.h4 = -0.4;
-		// NS : 0.15 - 0.45
-		In1_NS.a1 = -0.45;
-		In1_NS.a2 = -0.2;
-		In1_NS.a3 = -0.15;
-		// ZE : 0 - 0.2
-		In1_ZE.a1 = -0.2;
-		In2_ZE.a2 = 0;
-		In2_ZE.a3 = 0.2;
-		// PS : 0.15 - 0.45
-		In1_PS.a1 = 0.15;
-		In1_PS.a2 = 0.2;
-		In1_PS.a3 = 0.45;
-		// PB : 0.4 - 1
-		In1_PB.h1 = 0.4;
-		In1_PB.h2 = 0.45;
-		In1_PB.h3 = 1;
-		In1_PB.h4 = 2;
+		// NB :
+		Trapf_Update(&In1_NB, -2, -1, -0.45, -0.4);
+		// NS :
+		Trimf_Update(&In1_NS, -0.45, -0.2, -0.15);
+		// ZE :
+		Trimf_Update(&In1_ZE, -0.2, 0, 0.2);
+		// PS :
+		Trimf_Update(&In1_PS, 0.15, 0.2, 0.45);
+		// PB : 
+		Trapf_Update(&In1_PB, 0.4, 0.45, 1, 2);
 		/* Input 2 (edot = Set_thetadot - thetadot) */
-		// NE : 0.3 - 1
-		In2_NE.h1 = -2;
-		In2_NE.h2 = -1;
-		In2_NE.h3 = -0.4;
-		In2_NE.h4 = -0.3;
-		// ZE : 0 - 0.4
-		In2_ZE.a1 = -0.4;
-		In2_ZE.a2 = 0;
-		In2_ZE.a3 = 0.4;
-		// PO : 0.3 - 1
-		In2_PO.h1 = 0.3;
-		In2_PO.h2 = 0.4;
-		In2_PO.h3 = 1;
-		In2_PO.h4 = 2;
+		// NE :
+		Trapf_Update(&In2_NE, -2, -1, -0.4, -0.1);
+		// ZE : 
+		Trimf_Update(&In2_ZE, -0.4, 0, 0.4);
+		// PO : 
+		Trapf_Update(&In2_PO, 0.1, 0.4, 1, 2);
 		/* Output value */
 		NB = -0.75;
 		NM = -0.4;
@@ -1126,18 +1031,18 @@ void	SelectFuzzyOutput(double vel)
 **  @agr    : 2 input value
 **  @retval : Output value
 **/
-void	Defuzzification_Max_Min(IMU *pimu)
+double Defuzzification_Max_Min(double e, double edot)
 {
-	double pBeta[3], num = 0, den = 0, temp;
+	double pBeta[3], num, den, temp;
 	double e_NB, e_NS, e_ZE, e_PS, e_PB, edot_NE, edot_ZE, edot_PO;
-	e_NB = Trapf(&In1_NB, pimu->Fuzzy_Error);
-	e_NS = Trimf(&In1_NS, pimu->Fuzzy_Error);
-	e_ZE = Trimf(&In1_ZE, pimu->Fuzzy_Error);
-	e_PS = Trimf(&In1_PS, pimu->Fuzzy_Error);
-	e_PB = Trapf(&In1_PB, pimu->Fuzzy_Error);
-	edot_NE = Trapf(&In2_NE, pimu->Fuzzy_Error_dot);
-	edot_ZE = Trimf(&In2_ZE, pimu->Fuzzy_Error_dot);
-	edot_PO = Trapf(&In2_PO, pimu->Fuzzy_Error_dot);
+	e_NB = Trapf(&In1_NB, e);
+	e_NS = Trimf(&In1_NS, e);
+	e_ZE = Trimf(&In1_ZE, e);
+	e_PS = Trimf(&In1_PS, e);
+	e_PB = Trapf(&In1_PB, e);
+	edot_NE = Trapf(&In2_NE, edot);
+	edot_ZE = Trimf(&In2_ZE, edot);
+	edot_PO = Trapf(&In2_PO, edot);
 	//NB and NE is NB
 	pBeta[0] = Min(e_NB, edot_NE);
 	num = NB * pBeta[0];
@@ -1187,26 +1092,23 @@ void	Defuzzification_Max_Min(IMU *pimu)
 	pBeta[0] = Min(e_PB, edot_PO);
 	num += PB * pBeta[0];
 	den += pBeta[0];
-	if(den == 0) 
-		pimu->Fuzzy_Out = 0;
-	else
-	{
-		pimu->Fuzzy_Out = num / den;
-	}
+
+	return (den == 0) ? 0 : (num/den);
 }
 
-void Defuzzification2_Max_Min(IMU *pimu) {
+double Defuzzification2_Max_Min(double e, double edot) 
+{
 	double pBeta[10], num, den;
 	double e_NB, e_NS, e_ZE, e_PS, e_PB, edot_NE, edot_ZE, edot_PO;
-	e_NB = Trapf(&In1_NB, pimu->Fuzzy_Error);
-	e_NS = Trimf(&In1_NS, pimu->Fuzzy_Error);
-	e_ZE = Trimf(&In1_ZE, pimu->Fuzzy_Error);
-	e_PS = Trimf(&In1_PS, pimu->Fuzzy_Error);
-	e_PB = Trapf(&In1_PB, pimu->Fuzzy_Error);
-	edot_NE = Trapf(&In2_NE, pimu->Fuzzy_Error_dot);
-	edot_ZE = Trimf(&In2_ZE, pimu->Fuzzy_Error_dot);
-	edot_PO = Trapf(&In2_PO, pimu->Fuzzy_Error_dot);
-	if(pimu->Fuzzy_Error_dot <= -0.4) // u_NE(edot) = 1
+	e_NB = Trapf(&In1_NB, e);
+	e_NS = Trimf(&In1_NS, e);
+	e_ZE = Trimf(&In1_ZE, e);
+	e_PS = Trimf(&In1_PS, e);
+	e_PB = Trapf(&In1_PB, e);
+	edot_NE = Trapf(&In2_NE, edot);
+	edot_ZE = Trimf(&In2_ZE, edot);
+	edot_PO = Trapf(&In2_PO, edot);
+	if(edot <= -0.4) // u_NE(edot) = 1
 	{
 		pBeta[0] = e_NB; // u_NB(e) -> output is NB
 		pBeta[1] = e_NS; // u_NS(e) -> output is NM
@@ -1216,7 +1118,7 @@ void Defuzzification2_Max_Min(IMU *pimu) {
 		num = pBeta[0]*NB + pBeta[1]*NM + pBeta[2]*NS + pBeta[3]*ZE + pBeta[4]*PS;
 		den = pBeta[0] + pBeta[1] + pBeta[2] + pBeta[3] + pBeta[4];
 	}
-	else if (pimu->Fuzzy_Error_dot < 0) // u_NE(edot) = trapf_NE(edot), u_ZE(edot) = trimf_ZE(edot)
+	else if (edot < 0) // u_NE(edot) = trapf_NE(edot), u_ZE(edot) = trimf_ZE(edot)
 	{
 		/* u_NE(edot) = trapf_NE(edot) */
 		pBeta[0] = Min(e_NB, edot_NE); // output is NB
@@ -1235,7 +1137,7 @@ void Defuzzification2_Max_Min(IMU *pimu) {
 		den = pBeta[0] + pBeta[1] + pBeta[2] + pBeta[3] + pBeta[4] + 
 				pBeta[5] + pBeta[6] + pBeta[7] + pBeta[8] + pBeta[9];
 	}
-	else if (pimu->Fuzzy_Error_dot < 0.4) // u_ZE(edot) = trimf_ZE(edot), u_PO(edot) = trapf_PO(edot)
+	else if (edot < 0.4) // u_ZE(edot) = trimf_ZE(edot), u_PO(edot) = trapf_PO(edot)
 	{
 		/* u_ZE(edot) = trimf_ZE(edot) */
 		pBeta[0] = Min(e_NB, edot_ZE); // output is NM
@@ -1264,7 +1166,7 @@ void Defuzzification2_Max_Min(IMU *pimu) {
 		num = pBeta[0]*NS + pBeta[1]*ZE + pBeta[2]*PS + pBeta[3]*PM + pBeta[4]*PB;
 		den = pBeta[0] + pBeta[1] + pBeta[2] + pBeta[3] + pBeta[4];
 	}
-	pimu->Fuzzy_Out = num/den;
+	return num/den;
 }
 
 

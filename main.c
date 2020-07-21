@@ -70,8 +70,8 @@ void GPS_ReadParametersFromFlash(FlashMemory *pflash, GPS *pgps)
 		pgps->Latitude 	= GetValueFromString(&Flash.Message[i * 2 + 1][0]);
 		pgps->Longitude	= GetValueFromString(&Flash.Message[i * 2 + 2][0]);
 		GPS_LatLonToUTM(pgps);
-		pgps->Path_X[i]	= pgps->CorX;
-		pgps->Path_Y[i]	= pgps->CorY;
+		pgps->P_X[i] = pgps->CorX;
+		pgps->P_Y[i] = pgps->CorY;
 	}
 	GPS_UpdatePathYaw(pgps);
 }
@@ -240,7 +240,7 @@ void GPS_StanleyCompute()
 	}
 	IMU_UpdateSetAngle(&Mag, GPS_NEO.Delta_Angle);
 	IMU_UpdateFuzzyInput(&Mag);
-	Defuzzification_Max_Min(&Mag);
+	Mag.Fuzzy_Out = Defuzzification_Max_Min(Mag.Fuzzy_Error, Mag.Fuzzy_Error_dot);
 
 	if(Mag.Fuzzy_Out >= 0)
 	{
@@ -419,7 +419,7 @@ int main(void)
 				/* Notes: This mode is used for angle control test purposes */
 				case Manual_Mode: 
 					IMU_UpdateFuzzyInput(&Mag);
-					Defuzzification_Max_Min(&Mag);
+					Mag.Fuzzy_Out = Defuzzification_Max_Min(Mag.Fuzzy_Error, Mag.Fuzzy_Error_dot);
 					if(Mag.Fuzzy_Out >= 0) // turn right
 					{
 						PID_UpdateSetVel(&M1, (- fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
@@ -432,7 +432,7 @@ int main(void)
 					}
 					PID_Compute(&M1);
 					PID_Compute(&M2);
-					Robot_Run(M1.PID_Out, M2.PID_Out);   //Forward down counting Set bit
+					Robot_Run(M1.PID_Out, M2.PID_Out);
 					Mag.Pre_Angle = Mag.Angle;
 					break;
 				
