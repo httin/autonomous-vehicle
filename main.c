@@ -326,8 +326,6 @@ static void Parameters_Init(void)
 	};*/
 	/*------------PID Parameter Init-------------*/
 	PID_ReadParametersFromFlash();
-	PID_ParametersInitial(&M1);
-	PID_ParametersInitial(&M2);
 	/*------------Fuzzy parametes Init ----------*/
 	Fuzzy_ParametersInit();
 	/*------------------AngleControl-------------*/

@@ -123,8 +123,9 @@ typedef	struct  DCMotor{
 	int32_t   Diff_Encoder;
 	uint16_t  Enc;
 	uint16_t  PreEnc;
+#ifdef ENCODER_IT
 	uint8_t   OverFlow;
-	uint8_t   Change_State; // 0 or 1
+#endif
 } DCMotor;
 
 /* Triangle function */
@@ -280,14 +281,12 @@ void					Time_SampleTimeUpdate(Time *pTime, uint32_t sample_time_update);
 #define 				Time_SendTimeUpdate(pTime, send_time_in_ms)	(pTime)->send_time = (send_time_in_ms); 
 /*------------ Vehicle status functions ----------*/
 void					Veh_UpdateVehicleFromKey(Vehicle *pveh);
-void					Veh_CheckStateChange(DCMotor *ipid, uint8_t State);
 #define 				Veh_UpdateMaxVelocity(pveh, MaxVelocity)	(pveh)->Max_Velocity = (MaxVelocity);
 enum_Error              Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL]);
 enum_Command            Veh_MsgToCmd(char *);
 /*------------ PID Function ----------------------*/
 void 					PID_SavePIDParaToFlash(FlashMemory *pflash, DCMotor *M1, DCMotor *M2);
 void 					PID_Compute(DCMotor *ipid);
-void 					PID_ParametersInitial(DCMotor *ipid);
 #define 				PID_UpdateSetVel(DCMotor, SetVal)	(DCMotor)->Set_Vel = (SetVal) 
 void 					PID_ParametersUpdate(DCMotor *ipid, double Kp, double Ki, double Kd);
 void 					PID_ResetPID(DCMotor *ipid);

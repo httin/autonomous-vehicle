@@ -52,15 +52,6 @@ void PID_Compute(DCMotor *ipid)
 	ipid->Pre_PID = ipid->PID_Out; // u(k-1) = u(k)
 }
 
-/** @brief  : First initial PID parameters
-**	@retval : None
-**/
-void PID_ParametersInitial(DCMotor *ipid)
-{
-	/* M1, M2 were initialized as a global variable */
-	ipid->Change_State = 1;
-}
-
 /** @brief  : PID update parameters function
 **	@retval : None
 **/
@@ -177,16 +168,6 @@ enum_Error	Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_
 	else
 		return LORA_WrongCheckSum;
 }
-
-void Veh_CheckStateChange(DCMotor *ipid, uint8_t State)
-{
-	if(ipid->Change_State != State)
-	{
-		PID_ResetPID(ipid);
-		ipid->Change_State = State;
-	}
-}
-
 
 /* ----------------------- GPS function ---------------------------------------*/
 
