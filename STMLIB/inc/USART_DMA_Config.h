@@ -30,12 +30,12 @@
 #define		U2_GPIO_PinSourceRx				GPIO_PinSource6
 #define 	U2_RCC_AHB1Periph_GPIOx			RCC_AHB1Periph_GPIOD
 /*-------- Hardware config USART6 (can change) ---------
- * @brief:	Baudrate 19200
+ * @brief:	Baudrate 115200
  *			Used to communicate between LORA-MCU & LORA-PC (C# interface)
  * @pinout: PC6: TX -> RX Lora-MCU
  *			PC7: RX -> TX Lora-MCU 	
  */
-#define		U6_Baudrate						19200
+#define		U6_Baudrate						115200
 #define 	U6_GPIOx						GPIOC
 #define 	U6_GPIO_Pin_Tx        			GPIO_Pin_6
 #define 	U6_GPIO_Pin_Rx					GPIO_Pin_7
@@ -48,18 +48,18 @@
 #define IMU_TX_BUFFERSIZE 20
 #define IMU_RX_BUFFERSIZE 100
 extern 		uint8_t 	U1_TxBuffer[IMU_TX_BUFFERSIZE], U1_RxBuffer[IMU_RX_BUFFERSIZE];
-#define ROVER_TX_BUFFERSIZE 1
+#define ROVER_TX_BUFFERSIZE 0
 #define ROVER_RX_BUFFERSIZE 200
-extern 		uint8_t		U2_TxBuffer[ROVER_TX_BUFFERSIZE], U2_RxBuffer[ROVER_RX_BUFFERSIZE];
-#define MAX_LORA_BUFFERSIZE	58
-extern 		uint8_t 	U6_TxBuffer[MAX_LORA_BUFFERSIZE + 1], U6_RxBuffer[MAX_LORA_BUFFERSIZE + 1]; // +1 for NULL-terminated
+extern 		uint8_t		U2_RxBuffer[ROVER_RX_BUFFERSIZE];
+#define LORA_RX_BUFFERSIZE	58
+#define LORA_TX_BUFFERSIZE 200
+extern 		uint8_t 	U6_TxBuffer[LORA_TX_BUFFERSIZE], U6_RxBuffer[LORA_RX_BUFFERSIZE + 1]; // +1 for NULL-terminated
 /* Export Function */
 void 	USART1_Config(uint32_t  BaudRate);
 void 	USART2_Config(uint32_t  BaudRate);
 void 	USART6_Config(uint32_t  BaudRate);
 
 void 	U1_SendData(uint16_t NbOfByte);
-void 	U2_SendData(uint16_t NbOfByte);	// U2 send nothing, doesn't use
 void 	U6_SendData(uint16_t NbOfByte);
 
 #endif

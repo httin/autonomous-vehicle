@@ -28,7 +28,7 @@ void TIM16_Delay_MS(TIM_TypeDef *TIMx, uint16_t period)
 {
 	/** @Enable @RCC @Clock **/
 	GetTIMxClockCmd(TIMx,ENABLE);
-	TIM4->PSC = 4999;    // STM32F411 has 16 bits TIM4 50MHz APB1 bus 50*10^6 / 50 = 1MHz => 1us
+	TIM4->PSC = 4999;    // STM32F411 has 16 bits TIM4 50MHz APB1 bus 50*10^6 / 5000 = 1MHz => 1us
 	TIM4->ARR = period*20 - 1;   // agr 16 bits unsigned int
 	TIM4->CNT = 0;
 

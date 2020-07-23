@@ -232,14 +232,13 @@ void USART1_IRQHandler(void)
 void DMA2_Stream5_IRQHandler(void)
 {
 	DMA_ClearITPendingBit(DMA2_Stream5, DMA_IT_TCIF5);
-	Veh.Veh_Error = IMU_GetValueFromMessage(&Mag, U1_RxBuffer);
-	if(Veh.Veh_Error != Veh_NoneError) 
-		Error_AppendError(&Veh_Error, Veh.Veh_Error);
-
-	if((!VehStt.IMU_FirstSetAngle) && (Mag.Angle != 0))
+	if( (Veh.Veh_Error = IMU_GetValueFromMessage(&Mag, U1_RxBuffer)) == Veh_NoneError )
 	{
-		IMU_UpdateSetAngle(&Mag, 0);
-		VehStt.IMU_FirstSetAngle = Check_OK; // update vehicle status
+		if((!VehStt.IMU_FirstGetAngle))
+		{
+			Mag.Set_Angle = Mag.Angle;
+			VehStt.IMU_FirstGetAngle = Check_OK; // from now on, angle read from IMU won't impact Set Angle
+		}
 	}
 	DMA_Cmd(DMA2_Stream5, ENABLE);
 }
@@ -263,8 +262,7 @@ void DMA1_Stream5_IRQHandler(void)
 	GPS_NEO.GPS_Error = GPS_GetLLQMessage(&GPS_NEO, U2_RxBuffer, U2.Message);
 	if(GPS_NEO.GPS_Error == Veh_NoneError)
 	{
-		VehStt.GPS_Coordinate_Received = Check_OK;
-		VehStt.GPS_ValidGPS = Check_OK;
+		VehStt.GPS_DataValid = Check_OK;
 
 		if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
 		{
@@ -280,8 +278,7 @@ void DMA1_Stream5_IRQHandler(void)
 	}
 	else
 	{
-		VehStt.GPS_Coordinate_Received = Check_NOK;
-		VehStt.GPS_ValidGPS = Check_NOK;
+		VehStt.GPS_DataValid = Check_NOK;
 		Error_AppendError(&Veh_Error, Veh.Veh_Error);
 	}
 	DMA_Cmd(DMA1_Stream5, ENABLE);
@@ -350,23 +347,20 @@ void DMA2_Stream2_IRQHandler(void)
 			{
 				/*----------------- Vehicle Config -------------------*/
 				case None:
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
+					U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,?"));
 					break;
 				
 				case Vehicle_Config:
-					if(StringHeaderCompare(&U6.Message[1][0],"FUZZY"))
+					if(StringHeaderCompare(&U6.Message[1][0], "FUZZY"))
 					{
 						IMU_UpdateFuzzyCoefficients(&Mag,
 							GetValueFromString(&U6.Message[2][0]),
 							GetValueFromString(&U6.Message[3][0]),
 							GetValueFromString(&U6.Message[4][0]));
 					}
-					else if(StringHeaderCompare(&U6.Message[1][0],"DATA")) 
+					else if(StringHeaderCompare(&U6.Message[1][0], "DATA")) 
 					{
-						if(U6.Message[2][0] == '1')
-							VehStt.Veh_Enable_SendData = Check_OK; //F7, vehicle sending data
-						else 
-							VehStt.Veh_Enable_SendData = Check_NOK; //F8, vehicle stop sending data
+						VehStt.Veh_Enable_SendData = (enum_Status) (U6.Message[2][0] == '1');
 					}
 					else
 					{
@@ -376,7 +370,7 @@ void DMA2_Stream2_IRQHandler(void)
 						PID_ParametersUpdate(&M2, GetValueFromString(&U6.Message[5][0]),
 							GetValueFromString(&U6.Message[6][0]), GetValueFromString(&U6.Message[7][0]));
 					}
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1")); //ACK to PC
+					U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,1")); //ACK to PC
 					break;
 				
 				/*---------------- Sample time config (us)------------------*/	
@@ -397,11 +391,10 @@ void DMA2_Stream2_IRQHandler(void)
 					{
 						U1_SendData(FeedBack(U1_TxBuffer,"$MAG2D"));
 						Reset_Motor();
-						Robot_AntiClockwise();
 						Veh.Mode = Calib_Mode;
 						VehStt.Veh_Calib_Flag = Check_OK; // Update Calibration IMU status
-						PID_UpdateSetVel(&M1, 50);
-						PID_UpdateSetVel(&M2, 50);
+						PID_UpdateSetVel(&M1, 40);
+						PID_UpdateSetVel(&M2, -40);
 						StartTimer(TIM5, 3000);
 					}
 					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
@@ -416,23 +409,50 @@ void DMA2_Stream2_IRQHandler(void)
 				
 				/*---------------- Manual mode config ----------------------*/
 				case Manual_Config: 
-					if(StringHeaderCompare(&U6.Message[1][0],"START"))
+					if(StringHeaderCompare(&U6.Message[1][0], "START"))
 					{
-						Robot_Forward();
 						Reset_Motor();
 						Veh.Mode = Manual_Mode;
-						if(VehStt.IMU_FirstSetAngle)
-						{
-							IMU_UpdateSetAngle(&Mag,0);
-						}
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 					}
-					else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
+					else if(StringHeaderCompare(&U6.Message[1][0], "STOP"))
 					{
 						Reset_Motor();
+						Veh.Mode = None_Mode;
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 					}
-					else
-						Veh.ManualCtrlKey = U6.Message[1][0];
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					else if(StringHeaderCompare(&U6.Message[1][0], "CMD")) 
+					{
+						Veh.ManualCtrlKey = U6.Message[2][0];
+						if(Veh.ManualCtrlKey == 'W')
+						{
+							Veh.Manual_Velocity += 0.1 * Veh.Max_Velocity;
+							if (Veh.Manual_Velocity > Veh.Max_Velocity)
+								Veh.Manual_Velocity = Veh.Max_Velocity;
+						}
+						else if(Veh.ManualCtrlKey == 'S')
+						{
+							Veh.Manual_Velocity -= 0.1 * Veh.Max_Velocity;
+							if (Veh.Manual_Velocity < 0)
+								Veh.Manual_Velocity = 0;
+						}
+						else if(Veh.ManualCtrlKey == 'D')
+						{
+							Veh.Manual_Angle += 30;
+							if(Veh.Manual_Angle > 180)
+								Veh.Manual_Angle -= 360;
+							Mag.Set_Angle = Degree_To_Degree(Mag.Set_Angle + 30);
+						}
+						else if(Veh.ManualCtrlKey == 'A')
+						{
+							Veh.Manual_Angle -= 30;
+							if(Veh.Manual_Angle < -180) 
+								Veh.Manual_Angle += 360;
+							Mag.Set_Angle = Degree_To_Degree(Mag.Set_Angle - 30);
+						}
+						Veh.ManualCtrlKey = 0;
+						U6_SendData(FeedBack(U6_TxBuffer,"$MACON,1"));
+					}
 					break;
 				
 				/*---------------- Auto mode config ------------------------*/
@@ -440,7 +460,6 @@ void DMA2_Stream2_IRQHandler(void)
 					if(StringHeaderCompare(&U6.Message[1][0],"START"))
 					{
 						Reset_Motor();
-						Robot_Forward();
 						Veh.Mode = Auto_Mode;
 						GPS_NEO.Goal_Flag = Check_NOK;
 						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
@@ -471,28 +490,23 @@ void DMA2_Stream2_IRQHandler(void)
 						VehStt.Veh_Auto_Flag = Check_NOK;
 						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 					}
-/*
 					else if(StringHeaderCompare(&U6.Message[1][0],"BACK"))
 					{
-						if((GPS_NEO.NbOfWayPoints != 0) && (GPS_NEO.Goal_Flag))
+						if(GPS_NEO.Goal_Flag)
 						{
 							GPS_NEO.Goal_Flag = Check_NOK;
 							VehStt.Veh_Auto_Flag = Check_NOK;
-							Convert_Double_Array(GPS_NEO.Path_X, GPS_NEO.NbOfWayPoints);
-							Convert_Double_Array(GPS_NEO.Path_Y, GPS_NEO.NbOfWayPoints);
-							GPS_NEO.NbOfP = 0;
-							GPS_ClearPathBuffer(&GPS_NEO);
-							GPS_PathPlanning(&GPS_NEO, GPS_NEO.Step);
+							Convert_Double_Array(GPS_NEO.P_X, GPS_NEO.NbOfWayPoints);
+							Convert_Double_Array(GPS_NEO.P_Y, GPS_NEO.NbOfWayPoints);
 							GPS_UpdatePathYaw(&GPS_NEO);
 							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 						}
 					}
-*/
 					else if(StringHeaderCompare(&U6.Message[1][0],"DATA"))
 					{
 						if(Veh.Mode == Auto_Mode)
 						{
-							Veh_UpdateMaxVelocity(&Veh,MPS2RPM(GetValueFromString(&U6.Message[2][0])));
+							Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[2][0])));
 							GPS_NEO.K = GetValueFromString(&U6.Message[3][0]);
 							GPS_NEO.Step = GetValueFromString(&U6.Message[4][0]);
 							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
@@ -545,13 +559,11 @@ void DMA2_Stream2_IRQHandler(void)
 					else if (StringHeaderCompare(&U6.Message[1][0],"SPLINE"))
 					{
 						GPS_NEO.NbOfWayPoints = (int)GetValueFromString(&U6.Message[2][0]);
-						GPS_NEO.Cor_Index = 0;
 						GPS_NEO.NbOfP = 0; /* set current index of array map */
 						GPS_NEO.Goal_Flag = Check_NOK;
 						VehStt.Veh_Auto_Flag = Check_NOK;
 						VehStt.GPS_Start_Receive_PathCor = Check_OK; 
 						GPS_ClearPathBuffer(&GPS_NEO); 
-						GPS_ClearPathCorBuffer(&GPS_NEO);
 						LED_ON(LED_BLUE_PIN); // Bat dau nhan toa do, led on
 						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,VPLAN,1"));
 					}
@@ -590,7 +602,6 @@ void DMA2_Stream2_IRQHandler(void)
 					if(StringHeaderCompare(&U6.Message[1][0],"START"))
 					{
 						Reset_Motor();
-						Robot_Forward();
 						Veh.Mode = KeyBoard_Mode;
 						Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[2][0])));
 						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));

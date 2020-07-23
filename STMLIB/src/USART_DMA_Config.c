@@ -6,9 +6,9 @@ USART_InitTypeDef							US_USART_Struct;
 NVIC_InitTypeDef							US_NVIC_Struct;
 
 /* Variables */
-uint8_t 						U1_TxBuffer[IMU_TX_BUFFERSIZE], U1_RxBuffer[IMU_RX_BUFFERSIZE];
-uint8_t							U2_TxBuffer[ROVER_TX_BUFFERSIZE], U2_RxBuffer[ROVER_RX_BUFFERSIZE];
-uint8_t							U6_TxBuffer[MAX_LORA_BUFFERSIZE + 1], U6_RxBuffer[MAX_LORA_BUFFERSIZE + 1];
+uint8_t 	U1_TxBuffer[IMU_TX_BUFFERSIZE], U1_RxBuffer[IMU_RX_BUFFERSIZE];
+uint8_t		U2_RxBuffer[ROVER_RX_BUFFERSIZE];
+uint8_t		U6_TxBuffer[LORA_TX_BUFFERSIZE], U6_RxBuffer[LORA_RX_BUFFERSIZE + 1];
 /*----- USART1 configuration ---------*/
 void USART1_Config(uint32_t  BaudRate)
 {
@@ -26,7 +26,7 @@ void USART1_Config(uint32_t  BaudRate)
 	GPIO_PinAFConfig(U1_GPIOx, U1_GPIO_PinSourceTx, GPIO_AF_USART1);
 	GPIO_PinAFConfig(U1_GPIOx, U1_GPIO_PinSourceRx, GPIO_AF_USART1);
 	
-	// Config USART Tx 
+	// Config DMA USART Tx 
 	US_USART_Struct.USART_BaudRate            = BaudRate;
 	US_USART_Struct.USART_Mode                = USART_Mode_Tx|USART_Mode_Rx;
 	US_USART_Struct.USART_WordLength          = USART_WordLength_8b;
@@ -129,6 +129,7 @@ void USART2_Config(uint32_t  BaudRate)
 	NVIC_Init(&US_NVIC_Struct);
 	
 	//--------Config DMA USART Tx----------
+#if ROVER_TX_BUFFERSIZE > 0
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_4;
 	US_DMA_Struct.DMA_BufferSize         = ROVER_TX_BUFFERSIZE;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
@@ -145,6 +146,7 @@ void USART2_Config(uint32_t  BaudRate)
 	US_DMA_Struct.DMA_FIFOThreshold      = DMA_FIFOThreshold_HalfFull;
 	US_DMA_Struct.DMA_Priority           = DMA_Priority_High;
 	DMA_Init(DMA1_Stream6, &US_DMA_Struct);
+#endif
 	//-----------Config DMA USART Rx------------------
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_4;
 	US_DMA_Struct.DMA_BufferSize         = ROVER_RX_BUFFERSIZE;
@@ -209,7 +211,7 @@ void USART6_Config(uint32_t BaudRate)
 	NVIC_Init(&US_NVIC_Struct);
 	//--------Config DMA USART Tx----------
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_5;
-	US_DMA_Struct.DMA_BufferSize         = MAX_LORA_BUFFERSIZE + 1;
+	US_DMA_Struct.DMA_BufferSize         = LORA_TX_BUFFERSIZE;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
 	US_DMA_Struct.DMA_DIR                = DMA_DIR_MemoryToPeripheral;
 	US_DMA_Struct.DMA_Memory0BaseAddr    = (uint32_t)&U6_TxBuffer;
@@ -226,7 +228,7 @@ void USART6_Config(uint32_t BaudRate)
 	DMA_Init(DMA2_Stream6, &US_DMA_Struct);
 	//-----------Config DMA USART Rx------------------
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_5;
-	US_DMA_Struct.DMA_BufferSize         = MAX_LORA_BUFFERSIZE + 1;
+	US_DMA_Struct.DMA_BufferSize         = LORA_RX_BUFFERSIZE + 1;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
 	US_DMA_Struct.DMA_DIR                = DMA_DIR_PeripheralToMemory;
 	US_DMA_Struct.DMA_Memory0BaseAddr    = (uint32_t)&U6_RxBuffer;
@@ -262,13 +264,6 @@ void U1_SendData(uint16_t NbOfByte)
 	DMA_ClearFlag(DMA2_Stream7, DMA_FLAG_TCIF7);
 	DMA2_Stream7->NDTR = NbOfByte;
 	DMA_Cmd(DMA2_Stream7, ENABLE);
-}
-
-void U2_SendData(uint16_t NbOfByte)
-{
-	DMA_ClearFlag(DMA1_Stream6, DMA_FLAG_TCIF6);
-	DMA1_Stream6->NDTR = NbOfByte;
-	DMA_Cmd(DMA1_Stream6, ENABLE);
 }
 
 void U6_SendData(uint16_t NbOfByte)
