@@ -238,6 +238,14 @@ void GPS_StanleyCompute()
 	{
 		GPS_PursuitControl(&GPS_NEO, Timer.T, M1.Current_Vel, M2.Current_Vel);
 	}
+
+	if(GPS_NEO.Goal_Flag)
+	{
+		PID_UpdateSetVel(&M1, 0);
+		PID_UpdateSetVel(&M2, 0);
+		return;
+	}
+
 	IMU_UpdateSetAngle(&Mag, GPS_NEO.Delta_Angle);
 	IMU_UpdateFuzzyInput(&Mag);
 	Mag.Fuzzy_Out = Defuzzification_Max_Min(Mag.Fuzzy_Error, Mag.Fuzzy_Error_dot);
@@ -252,11 +260,7 @@ void GPS_StanleyCompute()
 		PID_UpdateSetVel(&M1, (1 + fabs(Mag.Fuzzy_Out)) * Veh.Max_Velocity);
 		PID_UpdateSetVel(&M2, (1 - fabs(Mag.Fuzzy_Out)) * Veh.Max_Velocity);
 	}
-	if(GPS_NEO.Goal_Flag)
-	{
-		PID_UpdateSetVel(&M1, 0);
-		PID_UpdateSetVel(&M2, 0);
-	}
+
 }
 
 static void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx)
@@ -297,9 +301,6 @@ static void Parameters_Init(void)
 	Time_ParametersInit(&Timer, 50, 1000);
 	/* ------------------ Status ------------------ */
 	Status_ParametersInit(&VehStt);
-	/*VehStt = (Status) {
-		.Veh_Enable_SendData = Check_NOK
-	};*/
 	/*------------PID Parameter Init-------------*/
 	PID_ReadParametersFromFlash();
 	/*------------Fuzzy parametes Init ----------*/
@@ -377,8 +378,8 @@ int main(void)
 								}
 								else
 								{
-									PID_UpdateSetVel(&M1,0);
-									PID_UpdateSetVel(&M2,0);
+									PID_UpdateSetVel(&M1, 0);
+									PID_UpdateSetVel(&M2, 0);
 								}
 							}
 						}
@@ -447,24 +448,21 @@ int main(void)
 							{
 								Veh.Distance += fabs(M2.Diff_Encoder);
 							}
-							else
+							else // calibration is finished after rotating more than 10 revolutions
 							{
 								Veh.Distance = 0;
 								PID_UpdateSetVel(&M1, 0);
 								PID_UpdateSetVel(&M2, 0);
 								VehStt.Veh_Calib_Flag = Check_NOK;
-								VehStt.IMU_Calib_Finish = Check_OK;
 							}
-						}
-						if(VehStt.IMU_Calib_Finish)
+						} 
+						else if ((M1.Current_Vel == 0) && (M2.Current_Vel == 0))
 						{
-							if((M1.Current_Vel == 0) && (M2.Current_Vel == 0))
-							{
-								U1_SendData(FeedBack(U1_TxBuffer, "$MAGST"));
-								U6_SendData(FeedBack(U6_TxBuffer, "$CALIB,1"));
-								VehStt.IMU_Calib_Finish = Check_NOK;
-							}
+							//U1_SendData(FeedBack(U1_TxBuffer, "$MAGST"));
+							U6_SendData(FeedBack(U6_TxBuffer, "$CALIB,1"));	
+							Veh.Mode = None_Mode;			
 						}
+
 						PID_Compute(&M1);
 						PID_Compute(&M2);
 						Robot_Run(M1.PID_Out, M2.PID_Out);

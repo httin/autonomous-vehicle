@@ -260,6 +260,7 @@ void DMA1_Stream5_IRQHandler(void)
 {
 	DMA_ClearITPendingBit(DMA1_Stream5, DMA_IT_TCIF5);
 	GPS_NEO.GPS_Error = GPS_GetLLQMessage(&GPS_NEO, U2_RxBuffer, U2.Message);
+
 	if(GPS_NEO.GPS_Error == Veh_NoneError)
 	{
 		VehStt.GPS_DataValid = Check_OK;
@@ -392,22 +393,22 @@ void DMA2_Stream2_IRQHandler(void)
 						U1_SendData(FeedBack(U1_TxBuffer,"$MAG2D"));
 						Reset_Motor();
 						Veh.Mode = Calib_Mode;
-						VehStt.Veh_Calib_Flag = Check_OK; // Update Calibration IMU status
+						VehStt.Veh_Calib_Flag = Check_OK;
 						PID_UpdateSetVel(&M1, 40);
 						PID_UpdateSetVel(&M2, -40);
-						StartTimer(TIM5, 3000);
+						StartTimer(TIM5, 3000); // 3s interrupt
 					}
 					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 					break;
 				
-				/*---------------- Software reset --------------------------*/
+				/*------------------------ Software reset --------------------------*/
 				case Soft_Reset: 
 					Veh.Mode = Soft_Reset_Mode;
 					StartTimer(TIM5, 2000);
 					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 					break;
 				
-				/*---------------- Manual mode config ----------------------*/
+				/*------------------------ Manual mode ----------------------*/
 				case Manual_Config: 
 					if(StringHeaderCompare(&U6.Message[1][0], "START"))
 					{
@@ -455,7 +456,7 @@ void DMA2_Stream2_IRQHandler(void)
 					}
 					break;
 				
-				/*---------------- Auto mode config ------------------------*/
+				/*------------------------ Auto mode ------------------------*/
 				case Auto_Config: 
 					if(StringHeaderCompare(&U6.Message[1][0],"START"))
 					{
@@ -529,20 +530,20 @@ void DMA2_Stream2_IRQHandler(void)
 							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 						}
 					}
-/*
-					else if(StringHeaderCompare(&U6.Message[1][0],"SCTRL")) // $AUCON,SCTRL,STLEY/PSUIT,CC<CR><LF>
-					{
-						if(StringHeaderCompare(&U6.Message[2][0],"STLEY"))
-						{
-							Veh.Controller = Stanley_Controller;
-						}
-						else if(StringHeaderCompare(&U6.Message[2][0],"PSUIT"))
-						{
-							Veh.Controller = Pursuit_Controller;
-						}
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
-					}
-*/
+
+					//else if(StringHeaderCompare(&U6.Message[1][0],"SCTRL")) // $AUCON,SCTRL,STLEY/PSUIT,CC<CR><LF>
+					//{
+					//	if(StringHeaderCompare(&U6.Message[2][0],"STLEY"))
+					//	{
+					//		Veh.Controller = Stanley_Controller;
+					//	}
+					//	else if(StringHeaderCompare(&U6.Message[2][0],"PSUIT"))
+					//	{
+					//		Veh.Controller = Pursuit_Controller;
+					//	}
+					//	U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					//}
+
 					else
 						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
 					break;
@@ -593,11 +594,7 @@ void DMA2_Stream2_IRQHandler(void)
 					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
 					break;
 				
-				/*--------------- Save data in internal flash memory --------*/
-				/* Format: $KCTRL,1,max velocity 
-							$KCTRL,0
-							$KCTRL,W,S,A,D,level
-				*/
+				/*--------------- Control vehicle velocity by Keyboard ---------------*/
 				case KeyBoard_Control:
 					if(StringHeaderCompare(&U6.Message[1][0],"START"))
 					{

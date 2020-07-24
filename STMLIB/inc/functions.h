@@ -80,10 +80,9 @@ typedef struct Status{
 	enum_Status			Veh_Send_Data;				// Vehicle send data time finished
 	enum_Status			Veh_Enable_SendData;		// Flag to ENABLE send data from vehicle, set/unset by F7/F8
 	enum_Status			GPS_DataValid;				// Set when new gps packet is none error
-	enum_Status			Veh_Calib_Flag;				//
+	enum_Status			Veh_Calib_Flag;				// Calibration IMU 
 	enum_Status			Veh_Timer_Finish;			// Timer 5 Stop 
 	enum_Status			Veh_Timer_Start;			// Timer 5 Start 
-	enum_Status			IMU_Calib_Finish;			// Calibration IMU 
 	enum_Status			Veh_Auto_Flag;				//  
 	enum_Status			GPS_Start_Receive_PathCor;	// Starting receive map coordinate from C#
 	enum_Status			GPS_SelfUpdatePosition_Flag;// 
@@ -180,8 +179,8 @@ typedef struct GPS {
 	double              Robot_Velocity; // (Vr + Vl) / 2
 	double              dmin;
 #define MAX_NUM_COORDINATE 1000
-	double              P_X[MAX_NUM_COORDINATE];  
-	double              P_Y[MAX_NUM_COORDINATE];  
+	double              P_X[MAX_NUM_COORDINATE];  // x in UTM
+	double              P_Y[MAX_NUM_COORDINATE];  // y in UTM
 	double              P_Yaw[MAX_NUM_COORDINATE];
 	/* GPS NEO M8P input coordinates */
 	double              Latitude;
