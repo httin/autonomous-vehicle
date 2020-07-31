@@ -552,6 +552,7 @@ void DMA2_Stream2_IRQHandler(void)
 				case Path_Plan: 
 					if (StringHeaderCompare(&U6.Message[1][0], "STOP"))
 					{
+						U1_SendData(my_strcpy(U1_TxBuffer, u6_message));
 						VehStt.GPS_Start_Receive_PathCor = Check_NOK;
 						LED_OFF(LED_BLUE_PIN);  // Ket thuc nhan toa do, led off
 						GPS_UpdatePathYaw(&GPS_NEO);
@@ -559,6 +560,7 @@ void DMA2_Stream2_IRQHandler(void)
 					}
 					else if (StringHeaderCompare(&U6.Message[1][0],"SPLINE"))
 					{
+						U1_SendData(my_strcpy(U1_TxBuffer, u6_message));
 						GPS_NEO.NbOfWayPoints = (int)GetValueFromString(&U6.Message[2][0]);
 						GPS_NEO.NbOfP = 0; /* set current index of array map */
 						GPS_NEO.Goal_Flag = Check_NOK;
@@ -570,6 +572,7 @@ void DMA2_Stream2_IRQHandler(void)
 					}
 					else if(VehStt.GPS_Start_Receive_PathCor)
 					{
+						U1_SendData(my_strcpy(U1_TxBuffer, u6_message));
 						GPS_NEO.NbOfP = (int)GetValueFromString(&U6.Message[1][0]);	// Index
 						GPS_NEO.P_X[GPS_NEO.NbOfP] = GetValueFromString(&U6.Message[2][0]); // x
 						GPS_NEO.P_Y[GPS_NEO.NbOfP] = GetValueFromString(&U6.Message[3][0]); // y

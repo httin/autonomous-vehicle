@@ -399,6 +399,16 @@ int FeedBack(uint8_t *outputmessage, char inputstring[MAX_LORA_BUFFERSIZE])
 	return i;
 }
 
+int my_strcpy(uint8_t *out_str, uint8_t *in_str)
+{
+	int i = 0;
+	while(in_str[i++] != 0)
+	{
+		out_str[i] = in_str[i];
+	}
+	return i;
+}
+
 void Convert_Double_Array(double *pInputArray, int n)
 {
 	double temp;
@@ -450,7 +460,8 @@ double Degree_To_Degree(double angle)
 **/
 void GPS_LatLonToUTM(GPS *pgps)
 {
-	double la, lo, lat, lon, sa, sb, e2, e2cuadrada, c, Huso, S, deltaS, a, epsilon, nu, v, ta, a1, a2, j2, j4, j6, alfa, beta, gama, Bm, xx, yy;
+	double la, lo, lat, lon, sa, sb, e2, e2cuadrada, c, Huso, S, deltaS, a, epsilon, 
+		nu, v, ta, a1, a2, j2, j4, j6, alfa, beta, gama, Bm, xx, yy;
 	la = pgps->Latitude;
 	lo = pgps->Longitude;
 	sa = 6378137.00000;
@@ -513,6 +524,7 @@ void GPS_ParametersInit(GPS *pgps)
 {
 	pgps->Goal_Flag = Check_NOK;
 	pgps->GPS_Error = Veh_NoneError;
+	pgps->index_of_reference_point = -1; // there is no point that was referred
 	pgps->K = 0.5;
 	pgps->Step = 0.5;
 }
@@ -631,7 +643,91 @@ void GPS_ClearPathBuffer(GPS *pgps)
 **  @retval : Steering angle
 **/
 void GPS_StanleyControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_rpm)
-{                   /*   Current pose of the robot   / /  Path coordinate  / /  ThetaP  */
+{
+	double dx, dy, d;
+	int index = 0, i, upper_bound, lower_bound;
+	double v1_mps, v2_mps;
+	double L = 0.19, Lf = 0; // L is distance from (Xc, Yc) to the front wheel
+
+	pgps->heading_angle = -Mag.Angle * (double)pi/180 - pi; // heading angle of vehicle [rad]
+	v1_mps = Wheel_Radius * 2 * pi * v1_rpm / 60; // [m/s]
+	v2_mps = Wheel_Radius * 2 * pi * v2_rpm / 60; // [m/s]
+	pgps->Robot_Velocity = (v1_mps + v2_mps)/2; 
+	
+	pgps->currentPosX = pgps->CorX;
+	pgps->currentPosY = pgps->CorY;
+	// Calculate new Pos if there is no new data from GPS
+	if(!pgps->NewDataAvailable)
+	{
+		pgps->currentPosX += pgps->Robot_Velocity * Timer.T;
+		pgps->currentPosY += pgps->Robot_Velocity * Timer.T;
+	}
+	// Calculate the front wheel position
+	pgps->currentPosX += DISTANCE_BETWEEN_GPS_FRONT_WHEEL * cos(pgps->heading_angle);
+	pgps->currentPosY += DISTANCE_BETWEEN_GPS_FRONT_WHEEL * sin(pgps->heading_angle);
+
+	//Searching the nearest point
+	if (pgps->index_of_reference_point == -1)
+	{
+		lower_bound = 0;
+		upper_bound = pgps->NbOfWayPoints;
+		pgps->dmin = 100000;
+	}
+	else 
+	{
+		if (pgps->index_of_reference_point <= SEARCH_OFFSET) 
+		{
+			lower_bound = 0;
+			upper_bound = pgps->index_of_reference_point + SEARCH_OFFSET;
+		}
+		else if (pgps->index_of_reference_point <= pgps->NbOfWayPoints - SEARCH_OFFSET)
+		{
+			lower_bound = pgps->index_of_reference_point - SEARCH_OFFSET;
+			upper_bound = pgps->index_of_reference_point + SEARCH_OFFSET;			
+		}
+		else 
+		{
+			lower_bound = pgps->index_of_reference_point - SEARCH_OFFSET;
+			upper_bound = pgps->NbOfWayPoints;
+		} 
+	}
+
+	for(i = lower_bound; i < upper_bound; ++i)
+	{
+		dx = pgps->currentPosX - pgps->P_X[i];
+		dy = pgps->currentPosY - pgps->P_Y[i];
+		d  = sqrt(pow(dx, 2) + pow(dy, 2));
+
+		if(pgps->dmin > d) 
+		{
+			pgps->dmin = d; 
+			index = i;	// position of the minimum value
+		}
+	}
+
+	Lf = pgps->K * pgps->Robot_Velocity + 0.1;
+	while((Lf > L) && (index < pgps->NbOfWayPoints - 1))
+	{
+		dx = pgps->currentPosX - pgps->P_X[index];
+		dy = pgps->currentPosY - pgps->P_Y[index];
+		L = sqrt(pow(dx, 2) + pow(dy, 2));
+		index++;
+	}
+
+	pgps->index_of_reference_point = index;
+	pgps->efa = -((pgps->currentPosX - pgps->P_X[index]) * cos(pgps->heading_angle + pi/2) + 
+				(pgps->currentPosY - pgps->P_Y[index]) * sin(pgps->heading_angle + pi/2));
+	pgps->goal_radius = sqrt(pow(pgps->currentPosX - pgps->P_X[pgps->NbOfWayPoints - 1], 2) + 
+							pow(pgps->currentPosY - pgps->P_Y[pgps->NbOfWayPoints - 1], 2));
+	if(pgps->goal_radius <= 1)
+		GPS_NEO.Goal_Flag = Check_OK;
+	pgps->Thetae = Pi_To_Pi(pgps->heading_angle - pgps->P_Yaw[index]);
+	pgps->Thetad = -atan2(pgps->K * pgps->efa, pgps->Robot_Velocity);
+	pgps->Delta_Angle  = (pgps->Thetae + pgps->Thetad)*(double)180/pi; // degree
+}
+
+void GPS_OldStanleyControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_rpm)
+{
 	double dmin = 0, dx, dy, d, posX, posY;
 	int index = 0;
 	double efa, v1_mps, v2_mps;
@@ -652,8 +748,8 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_r
 		posY = pgps->CorY + pgps->dy * pgps->Times * Timer.T;
 	}
 	// Calculate the front wheel position
-	posX += L * cos(pgps->heading_angle);
-	posY += L * sin(pgps->heading_angle);
+	posX += DISTANCE_BETWEEN_GPS_FRONT_WHEEL * cos(pgps->heading_angle);
+	posY += DISTANCE_BETWEEN_GPS_FRONT_WHEEL * sin(pgps->heading_angle);
 
 	//Searching the nearest point
 	//---------------------------

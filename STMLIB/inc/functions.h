@@ -157,8 +157,10 @@ typedef struct IMU {
 
 typedef struct GPS {
 	/* Robot statictis */
-	double              CorX;
-	double              CorY;
+	double              CorX; // x-coordinate converted from gps lat/lon to UTM [m]
+	double              CorY; // y-coordinate converted from gps lat/lon to UTM [m]
+	double              currentPosX; // x current coordinate [m]
+	double              currentPosY; // y current coordinate [m]
 	double              Pre_CorX;
 	double              Pre_CorY;
 	double              dx;
@@ -179,8 +181,8 @@ typedef struct GPS {
 	double              Robot_Velocity; // (Vr + Vl) / 2
 	double              dmin;
 #define MAX_NUM_COORDINATE 1000
-	double              P_X[MAX_NUM_COORDINATE];  // x in UTM
-	double              P_Y[MAX_NUM_COORDINATE];  // y in UTM
+	double              P_X[MAX_NUM_COORDINATE];  // map's coordinate-x in UTM
+	double              P_Y[MAX_NUM_COORDINATE];  // map's coordinate-y in UTM
 	double              P_Yaw[MAX_NUM_COORDINATE];
 	/* GPS NEO M8P input coordinates */
 	double              Latitude;
@@ -223,16 +225,18 @@ typedef struct FlashMemory{
 #define            K1                               1/(2*pi)
 #define	           K2                               4/pi
 #define	           K3                               1
+#define            SEARCH_OFFSET                    5          // for nearest point searching
 #define	           Wheel_Radius                     0.085
-#define            DISTANCE_BETWEEN_TWO_WHEELS      0.388;
+#define            DISTANCE_BETWEEN_TWO_WHEELS      0.388
+#define            DISTANCE_BETWEEN_GPS_FRONT_WHEEL 0.36
 #define	           IMU_AngleIndex                   17
 #define	           FLASH_ProgramType_Byte	        VoltageRange_1
 #define	           FLASH_ProgramType_HalfWord       VoltageRange_2
 #define	           FLASH_ProgramType_Word           VoltageRange_3
 #define	           FLASH_ProgramType_DoubleWord     VoltageRange_4
-#define	           FLASH_PIDPara_BaseAddr           0x08060000	// (4 KBytes) (0x08060000 - 0x08060FFF)
-#define	           FLASH_FuzPara_BaseAddr           0x08061000	// (4 Kbytes) (0x08061000 - 0x08061FFF)
-#define	           FLASH_GPSPara_BaseAddr           0x08040000	// (128 KBytes) 
+#define	           FLASH_PIDPara_BaseAddr           0x08060000  // (4 KBytes) (0x08060000 - 0x08060FFF)
+#define	           FLASH_FuzPara_BaseAddr           0x08061000  // (4 Kbytes) (0x08061000 - 0x08061FFF)
+#define	           FLASH_GPSPara_BaseAddr           0x08040000  // (128 KBytes) 
 /* Control Led Macros, doesn't use PD12, PD13 because it's for Encoder M2 */
 #define LED_RED_PIN      GPIO_Pin_14
 #define LED_BLUE_PIN     GPIO_Pin_15
@@ -289,6 +293,7 @@ uint8_t	                LRCCalculate(uint8_t *pBuffer, int length);
 enum_Status             IsCorrectMessage(uint8_t *inputmessage, int length, uint8_t byte1, uint8_t byte2);
 enum_Status             StringHeaderCompare(char *s1, char header[]);
 int                     FeedBack(uint8_t *outputmessage, char inputstring[20]);
+int                     my_strcpy(uint8_t *out_str, uint8_t *in_str)
 /*--------Stanley functions and GPS --------------*/
 void                    GPS_ParametersInit(GPS *pgps);
 void                    GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double M2Velocity);
