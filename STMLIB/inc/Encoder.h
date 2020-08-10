@@ -2,14 +2,21 @@
 #define ENCODER_H
 
 #include "stm32f4xx.h"
+#include "stm32f411_RCCEnable.h"
+#include "functions.h"
 #include <math.h>
 
 
-/* Hardware config */
+/*----- Parameter define ----------------*/
+#define         PWM_FREQUENCY       20000
+#if defined(STM32F40_41xxx)
+	#define     PWM_PERIOD          (168000000 / PWM_FREQUENCY)
+#endif 
+
 /*----- Hardware Encoder config M1: PA6, PA7 ------*/
 #define 				M1_TIMx								TIM3
 #define					M1_GPIOx							GPIOA
-#define					M1_RCC_PeriphClock					RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE)
+#define					M1_RCC_PeriphClock					RCC_APB1Periph_TIM3
 #define					M1_RCC_AHB1Periph_GPIOx				RCC_AHB1Periph_GPIOA
 #define					M1_GPIO_Pin_x1						GPIO_Pin_6	// PA6 = CHA M1
 #define					M1_GPIO_Pin_x2						GPIO_Pin_7	// PA7 = CHB M1
@@ -20,7 +27,7 @@
 /*----- Hardware Encoder config M2: PD12, PD13 ------*/
 #define 				M2_TIMx								TIM4
 #define					M2_GPIOx							GPIOD
-#define					M2_RCC_PeriphClock					RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE)
+#define					M2_RCC_PeriphClock					RCC_APB1Periph_TIM4
 #define					M2_RCC_AHB1Periph_GPIOx				RCC_AHB1Periph_GPIOD
 #define					M2_GPIO_Pin_x1						GPIO_Pin_12 // PD12 = CHA M2
 #define					M2_GPIO_Pin_x2						GPIO_Pin_13 // PD13 = CHB M2
@@ -36,15 +43,14 @@
 #define					PWM_GPIO_AF_TIMx					GPIO_AF_TIM9
 #define					PWM_GPIO_PinSourceOC1				GPIO_PinSource2
 #define					PWM_GPIO_PinSourceOC2				GPIO_PinSource3
-#define					PWM_RCC_PeriphClock					RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM9, ENABLE)
+#define					PWM_RCC_PeriphClock					RCC_APB2Periph_TIM9
 #define					PWM_RCC_AHB1Periph_GPIOx			RCC_AHB1Periph_GPIOA
 /*----- Direction Pin  -----------------*/
 #define					Dir_GPIOx							GPIOC
 #define					Dir_RCC_AHB1Periph_GPIOx			RCC_AHB1Periph_GPIOC
 #define					Dir_GPIO_Pin_M1						GPIO_Pin_3 //Dir pin for M1: PC3=DIR+ M1; GND=DIR- M1
 #define					Dir_GPIO_Pin_M2						GPIO_Pin_4 //Dir pin for M2: PC4=DIR+ M2; GND=DIR- M2
-/*----- Parameter define ----------------*/
-#define         Frequency_20KHz							  5000	/* 100MHz/20KHz */
+
 /* Data Types */
 /* Export Functions */
 #define M1_Forward()	GPIO_SetBits(Dir_GPIOx, Dir_GPIO_Pin_M1)
@@ -75,7 +81,9 @@
 	PWM_TIMx->CCR1 = 0;\
 	PWM_TIMx->CCR2 = 0;
 
-void 	Robot_Run(double duty_v1, double duty_v2);
-void 	Encoder_Config(void);
+void Robot_Run(double duty_v1, double duty_v2);
+void Encoder_Config(void);
+void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx, Time* pTime);
+double filter(double alpha, double v, double pre_v);
 
 #endif

@@ -33,14 +33,14 @@ void	Status_ParametersInit(Status *pStatus)
 **	@agr    : void
 **	@retval : None
 **/
-void PID_Compute(DCMotor *ipid)
+void PID_Compute(DCMotor *ipid, Time* pTime)
 {
-	ipid->Error = ipid->Set_Vel - ipid->Current_Vel; // sample e(k)
+	ipid->Error = ipid->current_set_v - ipid->current_v; // sample e(k)
 
 	ipid->PID_Out = ipid->Pre_PID + 
 		ipid->Kp * (ipid->Error - ipid->Pre_Error) + 
-		0.5 * ipid->Ki * Timer.T * (ipid->Error + ipid->Pre_Error) + 
-		(ipid->Kd / Timer.T) * (ipid->Error - 2 * ipid->Pre_Error + ipid->Pre2_Error);
+		0.5 * ipid->Ki * (pTime->velocity_T) * (ipid->Error + ipid->Pre_Error) + 
+		(ipid->Kd / (pTime->velocity_T)) * (ipid->Error - 2 * ipid->Pre_Error + ipid->Pre2_Error);
 
 	if (ipid->PID_Out < -100)
 		ipid->PID_Out = -100;
@@ -50,6 +50,12 @@ void PID_Compute(DCMotor *ipid)
 	ipid->Pre2_Error = ipid->Pre_Error; // e(k-2) = e(k-1)
 	ipid->Pre_Error = ipid->Error; // e(k-1) = e(k)
 	ipid->Pre_PID = ipid->PID_Out; // u(k-1) = u(k)
+}
+
+void PID_UpdateSetVel(DCMotor* pMotor, double target_v)
+{
+	pMotor->target_v = target_v;
+	pMotor->delta_v = (pMotor->target_v - pMotor->current_set_v) / 5;
 }
 
 /** @brief  : PID update parameters function
@@ -112,19 +118,11 @@ int	LengthOfLine(uint8_t *inputmessage)
 }
 
 /* ----------------------- Timer functions -----------------------------------*/
-void Time_ParametersInit(Time *ptime, uint32_t sample_time_init, uint32_t send_time_init)
+double sampleTimeCalc(uint32_t TIMx_Freq, uint16_t pres, uint32_t period)
 {
-	ptime->sample_time 	= sample_time_init;
-	ptime->sample_count = 0;
-	ptime->send_time 	= send_time_init;
-	ptime->send_count 	= 0;
-	ptime->T = ptime->sample_time * pow(10, -3); 
-}
-
-void	Time_SampleTimeUpdate(Time *ptime, uint32_t sample_time_update)
-{
-	ptime->sample_time = sample_time_update;
-	ptime->T = ptime->sample_time * pow(10, -3);
+	double res;
+	res = ((double)(pres * period)) / (TIMx_Freq);
+	return res;
 }
 
 /*------------------------ Vehicle Status Function ----------------------------*/
@@ -382,31 +380,26 @@ enum_Command	Veh_MsgToCmd(char *U6_message)
 		return None;
 }
 
-/** @brief  : Feed back message
+/** @brief  : copy from @ref_str to @out_str until meet \r\n
 **  @agr    : Result and status
 **  @retval : lenght 
 **/
-int FeedBack(uint8_t *outputmessage, char inputstring[MAX_LORA_BUFFERSIZE])
+int FeedBack(uint8_t *out_str, char *ref_str)
 {
 	int i = 0;
-	while(inputstring[i] != 0)
+	while(ref_str[i] != 0) 
 	{
-		outputmessage[i] = inputstring[i];
+		out_str[i] = ref_str[i];
+
+		if(ref_str[i] == 0x0D && ref_str[i + 1] == 0x0A) 
+		{
+			++i;
+			out_str[i] = 0x0A; // '\n'
+			break;
+		}
 		++i;
 	}
-	outputmessage[i++]  = 0x0D;	// carriage return
-	outputmessage[i++]  = 0x0A; // line feed
-	return i;
-}
-
-int my_strcpy(uint8_t *out_str, uint8_t *in_str)
-{
-	int i = 0;
-	while(in_str[i++] != 0)
-	{
-		out_str[i] = in_str[i];
-	}
-	return i;
+	return i + 1;
 }
 
 void Convert_Double_Array(double *pInputArray, int n)

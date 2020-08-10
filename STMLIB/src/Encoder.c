@@ -4,8 +4,6 @@ TIM_TimeBaseInitTypeDef 			En_TIM_BaseStruct;
 GPIO_InitTypeDef 						En_GPIO_Struct;
 NVIC_InitTypeDef						En_NVIC_Struct;
 
-/* Functions of Encoder and PWM */
-
 /**	@Brief: Configuration of Encoder for Motor 1
  	@Arg:   None 
  	@Retval: None
@@ -13,9 +11,9 @@ NVIC_InitTypeDef						En_NVIC_Struct;
 static void M1_Encoder_Config(void)
 {
 	RCC_AHB1PeriphClockCmd(M1_RCC_AHB1Periph_GPIOx, ENABLE);
-	M1_RCC_PeriphClock;
+	RCC_APB1PeriphClockCmd(M1_RCC_PeriphClock, ENABLE);
 	/* Config PA8 as AF pin */
-	En_GPIO_Struct.GPIO_Pin = M1_GPIO_Pin_x1|M1_GPIO_Pin_x2;
+	En_GPIO_Struct.GPIO_Pin = M1_GPIO_Pin_x1 | M1_GPIO_Pin_x2;
 	En_GPIO_Struct.GPIO_Mode = GPIO_Mode_AF;
 	En_GPIO_Struct.GPIO_OType = GPIO_OType_PP;
 	En_GPIO_Struct.GPIO_Speed = GPIO_Speed_50MHz;
@@ -51,8 +49,8 @@ static void M1_Encoder_Config(void)
  **/
 static void M2_Encoder_Config(void)
 {
-	RCC_AHB1PeriphClockCmd(M2_RCC_AHB1Periph_GPIOx,ENABLE);
-	M2_RCC_PeriphClock;
+	RCC_AHB1PeriphClockCmd(M2_RCC_AHB1Periph_GPIOx, ENABLE);
+	RCC_APB1PeriphClockCmd(M2_RCC_PeriphClock, ENABLE);
 	/* Config PA8 as AF pin */
 	En_GPIO_Struct.GPIO_Pin = M2_GPIO_Pin_x1|M2_GPIO_Pin_x2;
 	En_GPIO_Struct.GPIO_Mode = GPIO_Mode_AF;
@@ -88,11 +86,11 @@ static void M2_Encoder_Config(void)
 **  @Arg:    None
 **  @Retval: None
 **/
-static void PWM_Config(uint16_t freq)
+static void PWM_Config()
 {
-	TIM_OCInitTypeDef 						En_TIM_OCStruct;
+	TIM_OCInitTypeDef En_TIM_OCStruct;
 	/* Enable RCC clock for each Peripheral */
-	PWM_RCC_PeriphClock;
+	RCC_APB2PeriphClockCmd(PWM_RCC_PeriphClock, ENABLE);
 	RCC_AHB1PeriphClockCmd(PWM_RCC_AHB1Periph_GPIOx, ENABLE);
 	/* GPIO Config */
 	En_GPIO_Struct.GPIO_Pin 		= 	PWM_GPIO_Pin_OC1|PWM_GPIO_Pin_OC2;
@@ -106,7 +104,7 @@ static void PWM_Config(uint16_t freq)
 	GPIO_PinAFConfig(PWM_GPIOx, PWM_GPIO_PinSourceOC2, PWM_GPIO_AF_TIMx);
 	/* Time Base Init */
 	En_TIM_BaseStruct.TIM_Prescaler     = 0;
-	En_TIM_BaseStruct.TIM_Period        = freq - 1;
+	En_TIM_BaseStruct.TIM_Period        = (GetTIMxFrequency(PWM_TIMx) / PWM_FREQUENCY) - 1;
 	En_TIM_BaseStruct.TIM_CounterMode   = TIM_CounterMode_Up;
 	En_TIM_BaseStruct.TIM_ClockDivision = TIM_CKD_DIV1;
 	TIM_TimeBaseInit(PWM_TIMx, &En_TIM_BaseStruct);
@@ -121,6 +119,7 @@ static void PWM_Config(uint16_t freq)
 	TIM_OC2PreloadConfig(PWM_TIMx, TIM_OCPreload_Enable);
 	TIM_Cmd(PWM_TIMx,ENABLE);
 }
+
 /** @Brief:  2 pins control 2 drivers motor
 **  @Arg:    None
 **  @Retval: None
@@ -142,23 +141,23 @@ void Robot_Run(double duty_v1, double duty_v2)
 	if (duty_v1 >= 0 && duty_v2 >= 0) // v1 > 0 && v2 > 0
 	{
 		Robot_Forward();
-		PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * Frequency_20KHz) / 100);
-		PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * Frequency_20KHz) / 100);
+		PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * PWM_PERIOD) / 100);
+		PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * PWM_PERIOD) / 100);
 	} else if (duty_v1 >= 0 && duty_v2 <= 0) // v1 > 0 && v2 < 0
 	{
 		Robot_AntiClockwise();
-		PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * Frequency_20KHz) / 100);
-		PWM_TIMx->CCR2 = (uint16_t)((-duty_v2 * Frequency_20KHz) / 100);
+		PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * PWM_PERIOD) / 100);
+		PWM_TIMx->CCR2 = (uint16_t)((-duty_v2 * PWM_PERIOD) / 100);
 	} else if (duty_v1 <= 0 && duty_v2 >= 0) // v1 < 0 && v2 > 0
 	{
 		Robot_Clockwise();
-		PWM_TIMx->CCR1 = (uint16_t)((-duty_v1 * Frequency_20KHz) / 100);
-		PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * Frequency_20KHz) / 100);
+		PWM_TIMx->CCR1 = (uint16_t)((-duty_v1 * PWM_PERIOD) / 100);
+		PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * PWM_PERIOD) / 100);
 	} else if (duty_v1 <= 0 && duty_v2 <= 0) // v1 < 0 && v2 < 0
 	{
 		Robot_Backward();
-		PWM_TIMx->CCR1 = (uint16_t)((-duty_v1 * Frequency_20KHz) / 100);
-		PWM_TIMx->CCR2 = (uint16_t)((-duty_v2 * Frequency_20KHz) / 100);
+		PWM_TIMx->CCR1 = (uint16_t)((-duty_v1 * PWM_PERIOD) / 100);
+		PWM_TIMx->CCR2 = (uint16_t)((-duty_v2 * PWM_PERIOD) / 100);
 	} else {
 		Stop_Motor();
 	}
@@ -168,7 +167,42 @@ void Encoder_Config(void)
 {
 	M1_Encoder_Config();
 	M2_Encoder_Config();
-	PWM_Config(Frequency_20KHz);
+	PWM_Config();
 	DirPinConfig();
 	Robot_Forward();
+}
+
+/*
+ * 1 resolution = 39400 pulses encoder
+ * 10ms velocity sampling -> 1 pulse/10ms ~ 100 pulses/s ~  0.9137 degree/s
+ *                        or 1 pulse/10ms ~ 6000 pulses/m ~ 0.1523 resolution 
+ */
+void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx, Time* pTime)
+{
+	Motor->pre_v = Motor->current_v;
+	Motor->PreEnc = Motor->Enc;
+	Motor->Enc = TIMx->CNT;
+	Motor->Diff_Encoder = Motor->Enc - Motor->PreEnc;
+
+	if (Motor->Diff_Encoder > 30000)
+		Motor->Diff_Encoder = Motor->Enc - Motor->PreEnc - 0xFFFF;
+	else if (Motor->Diff_Encoder < -30000)
+		Motor->Diff_Encoder = Motor->Enc - Motor->PreEnc + 0xFFFF;
+
+	Motor->Total_Encoder += Motor->Diff_Encoder;
+	Motor->current_v = (((double)Motor->Diff_Encoder / 39400) * 60) / pTime->velocity_T; // rpm
+	/* HF filter */
+	Motor->current_v = filter(0.1, Motor->current_v, Motor->pre_v);
+
+	/* set velocity handling */
+	Motor->current_set_v += Motor->delta_v;
+	if( ((Motor->delta_v > 0) && (Motor->current_set_v > Motor->target_v)) ||
+		((Motor->delta_v < 0) && (Motor->current_set_v < Motor->target_v))
+		)
+		Motor->current_set_v = Motor->target_v;
+}
+
+double filter(double alpha, double v, double pre_v)
+{
+	return (1 - alpha)*v + alpha*pre_v;
 }

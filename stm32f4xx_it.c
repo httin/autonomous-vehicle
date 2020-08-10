@@ -182,38 +182,21 @@ void Reset_Motor()
 
 
 /**
-  * @brief  This function handles SysTick Handler every 1ms.
+  * @brief  This function handles SysTick Handler every 1/f (s).
   * @param  None
   * @retval None
   */
-/* M1 - Right motor, M2 - Left motor */
+void SetSysTick(uint32_t f) {
+	if (SysTick_Config(SystemCoreClock / f)) {
+		// Capture error
+		while (1){};
+	}
+}
+
 void SysTick_Handler(void)
 {
-	if(!VehStt.Veh_Sample_Time)
-	{
-		if(Timer.sample_count < Timer.sample_time)
-		{
-			++Timer.sample_count;
-		}
-		else
-		{
-			Timer.sample_count = 0;
-			VehStt.Veh_Sample_Time = Check_OK; // Time to get sample - every 50 ms
-		}
-	}
-
-	if(!VehStt.Veh_Send_Data)
-	{
-		if(Timer.send_count < Timer.send_time)
-		{
-			++Timer.send_count;
-		}
-		else
-		{
-			Timer.send_count = 0;
-			VehStt.Veh_Send_Data = Check_OK; // Time to send data - every 1s
-		}
-	}
+	/* TODO: Systick handler interrupt */
+	VehStt.Veh_SampleVelo = Check_OK;
 }
 
 /** brief : USART1 interrupt Rx handler **/
@@ -348,7 +331,7 @@ void DMA2_Stream2_IRQHandler(void)
 			{
 				/*----------------- Vehicle Config -------------------*/
 				case None:
-					U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,?"));
+					U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,?\r\n"));
 					break;
 				
 				case Vehicle_Config:
@@ -371,41 +354,42 @@ void DMA2_Stream2_IRQHandler(void)
 						PID_ParametersUpdate(&M2, GetValueFromString(&U6.Message[5][0]),
 							GetValueFromString(&U6.Message[6][0]), GetValueFromString(&U6.Message[7][0]));
 					}
-					U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,1")); //ACK to PC
+					U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,1\r\n")); //ACK to PC
 					break;
 				
-				/*---------------- Sample time config (us)------------------*/	
+				/*---------------- Sample time config ------------------*/	
 				case Sample_Time: 
-					Time_SampleTimeUpdate(&Timer, (uint32_t)GetValueFromString(&U6.Message[1][0]));
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					break;
 				
 				/*---------------- Send data time config (ms)---------------*/
 				case SendData_Time: 
-					Time_SendTimeUpdate(&Timer, (uint32_t)GetValueFromString(&U6.Message[1][0]));
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					break;
 				
 				/*---------------- IMU cmd and read data config --------*/
 				case IMU_Config: 
 					if(StringHeaderCompare(&U6.Message[1][0],"MAG2D"))
 					{
-						U1_SendData(FeedBack(U1_TxBuffer,"$MAG2D"));
+						U1_SendData(FeedBack(U1_TxBuffer,"$MAG2D\r\n"));
 						Reset_Motor();
 						Veh.Mode = Calib_Mode;
 						VehStt.Veh_Calib_Flag = Check_OK;
 						PID_UpdateSetVel(&M1, 40);
 						PID_UpdateSetVel(&M2, -40);
-						StartTimer(TIM5, 3000); // 3s interrupt
 					}
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					else if(StringHeaderCompare(&U6.Message[1][0],"START"))
+					{
+						U1_SendData(FeedBack(U1_TxBuffer,"$START\r\n"));
+					}
+
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					break;
 				
 				/*------------------------ Software reset --------------------------*/
 				case Soft_Reset: 
 					Veh.Mode = Soft_Reset_Mode;
-					StartTimer(TIM5, 2000);
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					break;
 				
 				/*------------------------ Manual mode ----------------------*/
@@ -414,13 +398,13 @@ void DMA2_Stream2_IRQHandler(void)
 					{
 						Reset_Motor();
 						Veh.Mode = Manual_Mode;
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0], "STOP"))
 					{
 						Reset_Motor();
 						Veh.Mode = None_Mode;
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0], "CMD")) 
 					{
@@ -452,7 +436,7 @@ void DMA2_Stream2_IRQHandler(void)
 							Mag.Set_Angle = Degree_To_Degree(Mag.Set_Angle - 30);
 						}
 						Veh.ManualCtrlKey = 0;
-						U6_SendData(FeedBack(U6_TxBuffer,"$MACON,1"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$MACON,1\r\n"));
 					}
 					break;
 				
@@ -463,12 +447,12 @@ void DMA2_Stream2_IRQHandler(void)
 						Reset_Motor();
 						Veh.Mode = Auto_Mode;
 						GPS_NEO.Goal_Flag = Check_NOK;
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
 					{
 						Reset_Motor();
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"RUN"))
 					{
@@ -477,19 +461,19 @@ void DMA2_Stream2_IRQHandler(void)
 							if(GPS_NEO.NbOfWayPoints != 0)
 							{
 								VehStt.Veh_Auto_Flag = Check_OK;
-								U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+								U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 							}
 							else
 							{
 								VehStt.Veh_Auto_Flag = Check_NOK;
-								U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
+								U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0\r\n"));
 							}
 						}
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"PAUSE"))
 					{
 						VehStt.Veh_Auto_Flag = Check_NOK;
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"BACK"))
 					{
@@ -500,7 +484,7 @@ void DMA2_Stream2_IRQHandler(void)
 							Convert_Double_Array(GPS_NEO.P_X, GPS_NEO.NbOfWayPoints);
 							Convert_Double_Array(GPS_NEO.P_Y, GPS_NEO.NbOfWayPoints);
 							GPS_UpdatePathYaw(&GPS_NEO);
-							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 						}
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"DATA"))
@@ -510,11 +494,11 @@ void DMA2_Stream2_IRQHandler(void)
 							Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[2][0])));
 							GPS_NEO.K = GetValueFromString(&U6.Message[3][0]);
 							GPS_NEO.Step = GetValueFromString(&U6.Message[4][0]);
-							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 						}
 						else
 						{
-							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0\r\n"));
 						}
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"SUPDT"))
@@ -522,12 +506,12 @@ void DMA2_Stream2_IRQHandler(void)
 						if(U6.Message[2][0] == '1')
 						{
 							VehStt.GPS_SelfUpdatePosition_Flag = Check_OK;
-							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 						}
 						else if(U6.Message[2][0] == '0')
 						{
 							VehStt.GPS_SelfUpdatePosition_Flag = Check_NOK;
-							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 						}
 					}
 
@@ -541,46 +525,49 @@ void DMA2_Stream2_IRQHandler(void)
 					//	{
 					//		Veh.Controller = Pursuit_Controller;
 					//	}
-					//	U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					//	U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					//}
 
 					else
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0\r\n"));
 					break;
 				
 				/*---------------- Receive path coordinate -----------------*/
 				case Path_Plan: 
 					if (StringHeaderCompare(&U6.Message[1][0], "STOP"))
 					{
-						U1_SendData(my_strcpy(U1_TxBuffer, u6_message));
+						U1_SendData(FeedBack(U1_TxBuffer, (char *)u6_message));
+
 						VehStt.GPS_Start_Receive_PathCor = Check_NOK;
-						LED_OFF(LED_BLUE_PIN);  // Ket thuc nhan toa do, led off
+						LED_OFF(LED_RED_PIN);  // Ket thuc nhan toa do, led off
 						GPS_UpdatePathYaw(&GPS_NEO);
-						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,VPLAN,0"));
+						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,VPLAN,0\r\n"));
 					}
 					else if (StringHeaderCompare(&U6.Message[1][0],"SPLINE"))
 					{
-						U1_SendData(my_strcpy(U1_TxBuffer, u6_message));
+						U1_SendData(FeedBack(U1_TxBuffer, (char *)u6_message));
+
 						GPS_NEO.NbOfWayPoints = (int)GetValueFromString(&U6.Message[2][0]);
 						GPS_NEO.NbOfP = 0; /* set current index of array map */
 						GPS_NEO.Goal_Flag = Check_NOK;
 						VehStt.Veh_Auto_Flag = Check_NOK;
 						VehStt.GPS_Start_Receive_PathCor = Check_OK; 
 						GPS_ClearPathBuffer(&GPS_NEO); 
-						LED_ON(LED_BLUE_PIN); // Bat dau nhan toa do, led on
-						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,VPLAN,1"));
+						LED_ON(LED_RED_PIN); // Bat dau nhan toa do, led on
+						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,VPLAN,1\r\n"));
 					}
 					else if(VehStt.GPS_Start_Receive_PathCor)
 					{
-						U1_SendData(my_strcpy(U1_TxBuffer, u6_message));
+						U1_SendData(FeedBack(U1_TxBuffer, (char *)u6_message));
+
 						GPS_NEO.NbOfP = (int)GetValueFromString(&U6.Message[1][0]);	// Index
 						GPS_NEO.P_X[GPS_NEO.NbOfP] = GetValueFromString(&U6.Message[2][0]); // x
 						GPS_NEO.P_Y[GPS_NEO.NbOfP] = GetValueFromString(&U6.Message[3][0]); // y
-						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,1"));
+						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,1\r\n"));
 					}
 					else
 					{
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,VPLAN,?"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,VPLAN,?\r\n"));
 					}
 					break;
 					
@@ -594,7 +581,7 @@ void DMA2_Stream2_IRQHandler(void)
 					{
 						SaveDataToInternalFlash(2);
 					}
-					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+					U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					break;
 				
 				/*--------------- Control vehicle velocity by Keyboard ---------------*/
@@ -604,13 +591,13 @@ void DMA2_Stream2_IRQHandler(void)
 						Reset_Motor();
 						Veh.Mode = KeyBoard_Mode;
 						Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[2][0])));
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
 					{
 						Veh.Mode = None_Mode;
 						Reset_Motor();
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else
 					{
@@ -623,7 +610,7 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, velo_linear);
 							PID_UpdateSetVel(&M2, velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,F"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,F\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* S - move backward */
 								(U6.Message[2][0] == 'S') && 
@@ -632,7 +619,7 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, -velo_linear);
 							PID_UpdateSetVel(&M2, -velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,B"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,B\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* A - move left */
 								(U6.Message[2][0] == '!') && 
@@ -641,7 +628,7 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, velo_linear);
 							PID_UpdateSetVel(&M2, -velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,L"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,L\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* D - move right */
 								(U6.Message[2][0] == '!') && 
@@ -650,7 +637,7 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, -velo_linear);
 							PID_UpdateSetVel(&M2, velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,R"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,R\r\n"));
 						}
 						else if((U6.Message[1][0] == 'W') && /* WA - move left+forward */
 								(U6.Message[2][0] == '!') && 
@@ -659,7 +646,7 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, velo_linear);
 							PID_UpdateSetVel(&M2, velo_linear * 0.5);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LF"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LF\r\n"));
 						}
 						else if((U6.Message[1][0] == 'W') && /* WD - move right+forward */
 								(U6.Message[2][0] == '!') && 
@@ -668,7 +655,7 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, velo_linear * 0.5);
 							PID_UpdateSetVel(&M2, velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RF"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RF\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* SA - move left+backward */
 								(U6.Message[2][0] == 'S') && 
@@ -677,7 +664,7 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, -velo_linear);
 							PID_UpdateSetVel(&M2, -velo_linear * 0.5);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LB"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LB\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* SD - move right+backward */
 								(U6.Message[2][0] == 'S') && 
@@ -686,7 +673,7 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, -velo_linear * 0.5);
 							PID_UpdateSetVel(&M2, -velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RB"));
+							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RB\r\n"));
 						}
 						else
 						{
@@ -700,7 +687,7 @@ void DMA2_Stream2_IRQHandler(void)
 		} // end Veh_SplitMsg
 		else 
 		{
-			U6_SendData(FeedBack(U6_TxBuffer,"$WRONG_CKSUM")); 
+			U6_SendData(FeedBack(U6_TxBuffer,"$WRONG_CKSUM\r\n")); 
 		}
 	} // end get_message_flag
 	DMA_Cmd(DMA2_Stream2, ENABLE);
@@ -708,6 +695,7 @@ void DMA2_Stream2_IRQHandler(void)
 /** ----------------------------------------------------------- **/
 /** ----------------------------------------------------------- **/
 /** ----------------------------------------------------------- **/
+
 #ifdef ENCODER_IT
 void TIM3_IRQHandler(void)
 {
@@ -722,18 +710,32 @@ void TIM4_IRQHandler(void)
 }
 #endif
 
-void TIM5_IRQHandler(void)
+void StartTimer(TIM_TypeDef *TIMx)
 {
-	TIM_ClearITPendingBit(TIM5, TIM_IT_Update);
-	if(!VehStt.Veh_Timer_Start)
+	TIM_SetCounter(TIMx, 0);
+	TIM_ITConfig(TIMx, TIM_IT_Update, ENABLE);
+	TIM_Cmd(TIMx, ENABLE); // start counting
+}
+
+void StopTimer(TIM_TypeDef *TIMx)
+{
+	TIM_ITConfig(TIMx, TIM_IT_Update, DISABLE);
+	TIM_Cmd(TIMx, DISABLE);
+}
+
+void TIM2_IRQHandler(void)
+{
+	if (TIM_GetITStatus(TIM2, TIM_IT_Update))
 	{
-		VehStt.Veh_Timer_Start = Check_OK;
-	}
-	else
-	{
-		StopTimer(TIM5);
-		VehStt.Veh_Timer_Start = Check_NOK;
-		VehStt.Veh_Timer_Finish = Check_OK;
+		++Timer.times_sample;
+		++Timer.times_send;
+		if(Timer.times_send == 20) {
+			VehStt.Veh_Send_Data = Check_OK;
+			Timer.times_send = 0;
+		}
+
+		VehStt.Veh_SampleState = Check_OK;
+		TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
 	}
 }
 

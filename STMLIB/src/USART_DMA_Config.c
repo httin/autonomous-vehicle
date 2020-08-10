@@ -21,7 +21,7 @@ void USART1_Config(uint32_t  BaudRate)
 	US_GPIO_Struct.GPIO_OType = GPIO_OType_PP;
 	US_GPIO_Struct.GPIO_PuPd  = GPIO_PuPd_UP;
 	US_GPIO_Struct.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(U1_GPIOx,&US_GPIO_Struct);
+	GPIO_Init(U1_GPIOx, &US_GPIO_Struct);
 	
 	GPIO_PinAFConfig(U1_GPIOx, U1_GPIO_PinSourceTx, GPIO_AF_USART1);
 	GPIO_PinAFConfig(U1_GPIOx, U1_GPIO_PinSourceRx, GPIO_AF_USART1);
@@ -35,18 +35,17 @@ void USART1_Config(uint32_t  BaudRate)
 	US_USART_Struct.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
 	USART_Init(USART1, &US_USART_Struct);
 	USART_Cmd(USART1, ENABLE);	// Enable USART1
-
 	USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);	// Enable USART1 Tx DMA
 	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);	// Enable USART1 Rx DMA
+
 	USART_ITConfig(USART1, USART_IT_IDLE, ENABLE);
-	
 	US_NVIC_Struct.NVIC_IRQChannel = USART1_IRQn;
 	US_NVIC_Struct.NVIC_IRQChannelPreemptionPriority = 0;
-	US_NVIC_Struct.NVIC_IRQChannelSubPriority = 3;
+	US_NVIC_Struct.NVIC_IRQChannelSubPriority = 1;
 	US_NVIC_Struct.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&US_NVIC_Struct);
 
-	// Config DMA USART Tx
+	//-----------Config DMA USART1 Tx: DMA2_Stream7, Channel 4------------------
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_4;
 	US_DMA_Struct.DMA_BufferSize         = IMU_TX_BUFFERSIZE;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
@@ -63,7 +62,7 @@ void USART1_Config(uint32_t  BaudRate)
 	US_DMA_Struct.DMA_FIFOThreshold      = DMA_FIFOThreshold_HalfFull;
 	US_DMA_Struct.DMA_Priority           = DMA_Priority_Medium;
 	DMA_Init(DMA2_Stream7, &US_DMA_Struct);
-	//-----------Config DMA USART Rx------------------
+	//-----------Config DMA USART1 Rx: DMA2_Stream5, Channel 4------------------
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_4;
 	US_DMA_Struct.DMA_BufferSize         = IMU_RX_BUFFERSIZE;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
@@ -80,12 +79,12 @@ void USART1_Config(uint32_t  BaudRate)
 	US_DMA_Struct.DMA_FIFOThreshold      = DMA_FIFOThreshold_HalfFull;
 	US_DMA_Struct.DMA_Priority           = DMA_Priority_Medium;
 	DMA_Init(DMA2_Stream5, &US_DMA_Struct);
-	DMA_Cmd(DMA2_Stream5, ENABLE);	// Enable DMA2_Stream5
+	DMA_Cmd(DMA2_Stream5, ENABLE);
 
 	//------------NVIC Config----------
 	US_NVIC_Struct.NVIC_IRQChannel                   = DMA2_Stream5_IRQn;
 	US_NVIC_Struct.NVIC_IRQChannelPreemptionPriority = 0;
-	US_NVIC_Struct.NVIC_IRQChannelSubPriority        = 3;
+	US_NVIC_Struct.NVIC_IRQChannelSubPriority        = 1;
 	US_NVIC_Struct.NVIC_IRQChannelCmd                = ENABLE;
 	NVIC_Init(&US_NVIC_Struct);
 	DMA_ITConfig(DMA2_Stream5, DMA_IT_TC, ENABLE);
@@ -177,9 +176,9 @@ void USART2_Config(uint32_t  BaudRate)
 /* ------------------ USART6 configuration ------------------ */
 void USART6_Config(uint32_t BaudRate)
 {
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART6,ENABLE);
-	RCC_AHB1PeriphClockCmd(U6_RCC_AHB1Periph_GPIOx,ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2,ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART6, ENABLE);
+	RCC_AHB1PeriphClockCmd(U6_RCC_AHB1Periph_GPIOx, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2, ENABLE);
 
 	US_GPIO_Struct.GPIO_Pin   = U6_GPIO_Pin_Tx|U6_GPIO_Pin_Rx;
 	US_GPIO_Struct.GPIO_Mode  = GPIO_Mode_AF;
@@ -206,10 +205,11 @@ void USART6_Config(uint32_t BaudRate)
 	USART_ITConfig(USART6, USART_IT_IDLE, ENABLE);
 	US_NVIC_Struct.NVIC_IRQChannel = USART6_IRQn;
 	US_NVIC_Struct.NVIC_IRQChannelPreemptionPriority = 0;
-	US_NVIC_Struct.NVIC_IRQChannelSubPriority = 1;
+	US_NVIC_Struct.NVIC_IRQChannelSubPriority = 3;
 	US_NVIC_Struct.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&US_NVIC_Struct);
-	//--------Config DMA USART Tx----------
+
+	//--------Config DMA USART6 Tx: DMA2_Stream6, Channel 5----------
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_5;
 	US_DMA_Struct.DMA_BufferSize         = LORA_TX_BUFFERSIZE;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
@@ -226,7 +226,7 @@ void USART6_Config(uint32_t BaudRate)
 	US_DMA_Struct.DMA_FIFOThreshold      = DMA_FIFOThreshold_HalfFull;
 	US_DMA_Struct.DMA_Priority           = DMA_Priority_VeryHigh;
 	DMA_Init(DMA2_Stream6, &US_DMA_Struct);
-	//-----------Config DMA USART Rx------------------
+	//-----------Config DMA USART Rx: DMA2_Stream2, Channel 5------------------
 	US_DMA_Struct.DMA_Channel            = DMA_Channel_5;
 	US_DMA_Struct.DMA_BufferSize         = LORA_RX_BUFFERSIZE + 1;
 	US_DMA_Struct.DMA_Mode               = DMA_Mode_Normal;
@@ -244,15 +244,15 @@ void USART6_Config(uint32_t BaudRate)
 	US_DMA_Struct.DMA_Priority           = DMA_Priority_VeryHigh;
 	DMA_Init(DMA2_Stream2, &US_DMA_Struct);
 	DMA_Cmd(DMA2_Stream2, ENABLE);
+
 	//------------NVIC Config----------
 	US_NVIC_Struct.NVIC_IRQChannel                   = DMA2_Stream2_IRQn;
 	US_NVIC_Struct.NVIC_IRQChannelPreemptionPriority = 0;
-	US_NVIC_Struct.NVIC_IRQChannelSubPriority        = 1;
+	US_NVIC_Struct.NVIC_IRQChannelSubPriority        = 3;
 	US_NVIC_Struct.NVIC_IRQChannelCmd                = ENABLE;
 	NVIC_Init(&US_NVIC_Struct);
 	DMA_ITConfig(DMA2_Stream2, DMA_IT_TC, ENABLE);
 }
-
 
 /*----------------  USARTx_SendData ---------------*/
 /** @brief : Function Enable DMA to send data 

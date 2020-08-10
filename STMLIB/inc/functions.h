@@ -5,8 +5,6 @@
 #include "stm32f4xx.h"
 #include "USART_DMA_Config.h"
 
-#define    SYSTICK_INTERRUPT_1MS 1000
-
 #define    MESSAGE_ROW 15
 #define    MESSAGE_COL 20
 #define    MAX_LORA_BUFFERSIZE 58
@@ -75,18 +73,17 @@ typedef enum{
  *							Define Struct 							*
  ********************************************************************/
 typedef struct Status{
-	enum_Status 		IMU_FirstGetAngle;			// IMU first time received angle after turning on
-	enum_Status			Veh_Sample_Time;			// Vehicle sample time finished
-	enum_Status			Veh_Send_Data;				// Vehicle send data time finished
-	enum_Status			Veh_Enable_SendData;		// Flag to ENABLE send data from vehicle, set/unset by F7/F8
-	enum_Status			GPS_DataValid;				// Set when new gps packet is none error
-	enum_Status			Veh_Calib_Flag;				// Calibration IMU 
-	enum_Status			Veh_Timer_Finish;			// Timer 5 Stop 
-	enum_Status			Veh_Timer_Start;			// Timer 5 Start 
-	enum_Status			Veh_Auto_Flag;				//  
-	enum_Status			GPS_Start_Receive_PathCor;	// Starting receive map coordinate from C#
-	enum_Status			GPS_SelfUpdatePosition_Flag;// 
-	enum_Status			GPS_FirstGetPosition;		// 
+	enum_Status        IMU_FirstGetAngle;           // IMU first time received angle after turning on
+	enum_Status        Veh_SampleVelo;              //
+	enum_Status	       Veh_SampleState;             // Vehicle sample time finished
+	enum_Status	       Veh_Send_Data;               // Vehicle send data time finished
+	enum_Status	       Veh_Enable_SendData;         // Flag to ENABLE send data from vehicle, set/unset by F7/F8
+	enum_Status	       Veh_Calib_Flag;              // Calibration IMU 
+	enum_Status	       Veh_Auto_Flag;               // 
+	enum_Status	       GPS_DataValid;               // Set when new gps packet is none error
+	enum_Status	       GPS_Start_Receive_PathCor;   // Starting receive map coordinate from C#
+	enum_Status	       GPS_SelfUpdatePosition_Flag; // 
+	enum_Status	       GPS_FirstGetPosition;        // 
 } Status;
 
 typedef struct Error{
@@ -95,11 +92,10 @@ typedef struct Error{
 } Error;
 
 typedef struct Time{
-	double      T; // sample period (50ms)
-	uint32_t    sample_time; // times of loop to sample (50)
-	uint32_t    sample_count; // counting variable every 1ms interrupt
-	uint32_t    send_time;
-	uint32_t    send_count;
+	double      T; // state sampling period (50ms)
+	double      velocity_T; // velocity sample period (10ms)
+	uint32_t    times_sample; // number of times sampling since system started
+	uint32_t    times_send; // number of times sending data since system started
 } Time;
 
 typedef	struct  DCMotor{
@@ -108,8 +104,11 @@ typedef	struct  DCMotor{
 	double    Ki;
 	double    Kd;
 	/* Input and Output of PID controller */
-	double    Set_Vel;
-	double    Current_Vel; // RPM
+	double    delta_v;
+	double    target_v;
+	double    current_set_v;
+	double    pre_v;
+	double    current_v; // RPM
 	double    Error; // e(k)
 	double    Pre_Error; // e(k-1)
 	double    Pre2_Error; // e(k-2)
@@ -273,27 +272,24 @@ void					Error_AppendError(Error *perror, enum_Error err);
 /*------------ Vehicle Status update -------------*/
 void					Status_ParametersInit(Status *pstt);
 /*------------ Timer Function --------------------*/
-void					Time_ParametersInit(Time *pTime, uint32_t sample_time_init, uint32_t send_time_init);
-void					Time_SampleTimeUpdate(Time *pTime, uint32_t sample_time_update);
-#define 				Time_SendTimeUpdate(pTime, send_time_in_ms)	(pTime)->send_time = (send_time_in_ms); 
+double                  sampleTimeCalc(uint32_t TIMx_Freq, uint16_t pres, uint32_t period);
 /*------------ Vehicle status functions ----------*/
 #define 				Veh_UpdateMaxVelocity(pveh, MaxVelocity)	(pveh)->Max_Velocity = (MaxVelocity);
 enum_Error              Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL]);
 enum_Command            Veh_MsgToCmd(char *);
 /*------------ PID Function ----------------------*/
-void 					PID_SavePIDParaToFlash(FlashMemory *pflash, DCMotor *M1, DCMotor *M2);
-void 					PID_Compute(DCMotor *ipid);
-#define 				PID_UpdateSetVel(DCMotor, SetVal)	(DCMotor)->Set_Vel = (SetVal) 
-void 					PID_ParametersUpdate(DCMotor *ipid, double Kp, double Ki, double Kd);
-void 					PID_ResetPID(DCMotor *ipid);
+void                    PID_SavePIDParaToFlash(FlashMemory *pflash, DCMotor *M1, DCMotor *M2);
+void                    PID_Compute(DCMotor *ipid, Time* pTime);
+void                    PID_UpdateSetVel(DCMotor* pMotor, double target_v);
+void                    PID_ParametersUpdate(DCMotor *ipid, double Kp, double Ki, double Kd);
+void                    PID_ResetPID(DCMotor *ipid);
 /* -------Send and Receive data function------------ */
 void                    GetMessageInfo(char *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL], char character);
 double                  GetValueFromString(char *value);
 uint8_t	                LRCCalculate(uint8_t *pBuffer, int length);
 enum_Status             IsCorrectMessage(uint8_t *inputmessage, int length, uint8_t byte1, uint8_t byte2);
 enum_Status             StringHeaderCompare(char *s1, char header[]);
-int                     FeedBack(uint8_t *outputmessage, char inputstring[20]);
-int                     my_strcpy(uint8_t *out_str, uint8_t *in_str)
+int                     FeedBack(uint8_t *outputmessage, char *inputstring);
 /*--------Stanley functions and GPS --------------*/
 void                    GPS_ParametersInit(GPS *pgps);
 void                    GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double M2Velocity);

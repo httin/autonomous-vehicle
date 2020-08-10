@@ -6,16 +6,16 @@
 /*-------- Hardware config USART1 (can change) ---------
  * @brief:	Baudrate 115200
  *			Used to communicate between MCU & IMU
- * @pinout: PA9: TX -> RX IMU
- *			PA10: RX -> TX IMU
+ * @pinout: PB6: TX -> RX IMU
+ *			PB7: RX -> TX IMU
  */
 #define		U1_Baudrate						115200
-#define 	U1_GPIOx						GPIOA
-#define 	U1_GPIO_Pin_Tx        			GPIO_Pin_9
-#define 	U1_GPIO_Pin_Rx					GPIO_Pin_10
-#define		U1_GPIO_PinSourceTx				GPIO_PinSource9
-#define		U1_GPIO_PinSourceRx				GPIO_PinSource10
-#define 	U1_RCC_AHB1Periph_GPIOx			RCC_AHB1Periph_GPIOA
+#define 	U1_GPIOx						GPIOB
+#define 	U1_GPIO_Pin_Tx        			GPIO_Pin_6
+#define 	U1_GPIO_Pin_Rx					GPIO_Pin_7
+#define		U1_GPIO_PinSourceTx				GPIO_PinSource6
+#define		U1_GPIO_PinSourceRx				GPIO_PinSource7
+#define 	U1_RCC_AHB1Periph_GPIOx			RCC_AHB1Periph_GPIOB
 /*-------- Hardware config USART2 (can change) ---------
  * @brief:	Baudrate 115200
  *			Used to communicate between LORA-GPS & LORA-BASE
@@ -45,7 +45,7 @@
 /* Types */
 
 /* Export variables */
-#define IMU_TX_BUFFERSIZE 20
+#define IMU_TX_BUFFERSIZE 50
 #define IMU_RX_BUFFERSIZE 100
 extern 		uint8_t 	U1_TxBuffer[IMU_TX_BUFFERSIZE], U1_RxBuffer[IMU_RX_BUFFERSIZE];
 #define ROVER_TX_BUFFERSIZE 0

@@ -35,7 +35,6 @@
 #include "stm32f4xx_delay.h"
 #include "USART_DMA_Config.h"
 #include "Encoder.h"
-#include "E_Compass.h"
 #include "functions.h"
 #include "core_cm4.h"
 #include "stm32f4xx_flash.h"

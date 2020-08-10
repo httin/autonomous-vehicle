@@ -74,10 +74,11 @@ void DMA2_Stream2_IRQHandler(void); // USART6 RX - Lora PC vs Lora VXL
 void TIM3_IRQHandler(void); // Overflow encoder interrupt
 void TIM4_IRQHandler(void); // Overflow encoder interrupt
 #endif
-void TIM5_IRQHandler(void); // Interrupt for IMU calibration
+void TIM2_IRQHandler(void); 
 /****************************************/
 
-extern void StartTimer(TIM_TypeDef *TIMx, uint32_t DelayTime);
+extern void SetSysTick(uint32_t f);
+extern void StartTimer(TIM_TypeDef *TIMx);
 extern void StopTimer(TIM_TypeDef *TIMx);
 static void SaveDataToInternalFlash(int key);
 //#ifdef __cplusplus

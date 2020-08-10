@@ -35,10 +35,10 @@ void GetGPIOxClockCmd(GPIO_TypeDef *GPIOx, FunctionalState NewState)
 void GetTIMxClockCmd(TIM_TypeDef *TIMx, FunctionalState NewState)
 {
 	if(TIMx == TIM1)
-		RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1,NewState);
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1,NewState); // APB2: 84 MHz -> TIM1 = PLL*84 = 168 MHz
 	else if(TIMx == TIM2)
-		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2,NewState);
-	else if(TIMx == TIM3)
+		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2,NewState); // APB1: 42 MHz -> TIM2 = PLL*42 = 84 MHz
+	else if(TIMx == TIM3) 
 		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3,NewState);
 	else if(TIMx == TIM4)
 		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4,NewState);
@@ -60,6 +60,17 @@ void GetTIMxClockCmd(TIM_TypeDef *TIMx, FunctionalState NewState)
 		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM12,NewState);
 	else if(TIMx == TIM13)
 		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM13,NewState);
+}
+
+uint32_t GetTIMxFrequency(TIM_TypeDef *TIMx)
+{
+	if( (TIMx == TIM1) || (TIMx == TIM8) || (TIMx == TIM9) || (TIMx == TIM10) || (TIMx == TIM11) )
+		return SystemCoreClock;
+	else if ( (TIMx == TIM2) || (TIMx == TIM3) || (TIMx == TIM4) || (TIMx == TIM5) || 
+		(TIMx == TIM6) || (TIMx == TIM7) || (TIMx == TIM12) || (TIMx == TIM13) )
+		return SystemCoreClock / 2;
+	else
+		return 0; /* error */
 }
 
 /** @Brief: Get IRQn_Type for TIMx
@@ -220,7 +231,4 @@ uint8_t	GetAFFromSPI(SPI_TypeDef *pSPIx)
 {
 	return (uint8_t)0x05;
 }
-
-
-
 
