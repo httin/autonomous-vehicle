@@ -261,7 +261,7 @@ static void Parameters_Init(void)
 	SetSysTick(100);
 	Timer.velocity_T = (double)1/100;
 	/* ------------------ Status ------------------ */
-	
+
 	/*------------PID Parameter Init-------------*/
 	PID_ReadParametersFromFlash();
 	/*------------Fuzzy parametes Init ----------*/
@@ -395,7 +395,7 @@ int main(void)
 					{
 						if(Veh.Distance < 39400 * 30)
 						{
-							Veh.Distance += fabs(M2.Diff_Encoder);
+							Veh.Distance = fabs(M2.Total_Encoder);
 						}
 						else // calibration is finished after rotating more than 10 revolutions
 						{
@@ -404,7 +404,7 @@ int main(void)
 							PID_UpdateSetVel(&M2, 0);
 							VehStt.Veh_Calib_Flag = Check_NOK;
 						}
-					} 
+					}
 					else if ((M1.current_v == 0) && (M2.current_v == 0))
 					{
 						U1_SendData(FeedBack(U1_TxBuffer, "$MAGST")); // send stop calib command to IMU

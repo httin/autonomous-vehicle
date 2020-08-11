@@ -191,18 +191,12 @@ void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx, Time* pTime)
 
 	Motor->Total_Encoder += Motor->Diff_Encoder;
 	Motor->current_v = (((double)Motor->Diff_Encoder / 39400) * 60) / pTime->velocity_T; // rpm
-	/* HF filter */
-	Motor->current_v = filter(0.1, Motor->current_v, Motor->pre_v);
 
 	/* set velocity handling */
-	Motor->current_set_v += Motor->delta_v;
-	if( ((Motor->delta_v > 0) && (Motor->current_set_v > Motor->target_v)) ||
-		((Motor->delta_v < 0) && (Motor->current_set_v < Motor->target_v))
-		)
-		Motor->current_set_v = Motor->target_v;
+	// Motor->current_set_v += Motor->delta_v;
+	// if( ((Motor->delta_v > 0) && (Motor->current_set_v > Motor->target_v)) ||
+	// 	((Motor->delta_v < 0) && (Motor->current_set_v < Motor->target_v))
+	// 	)
+	// 	Motor->current_set_v = Motor->target_v;
 }
 
-double filter(double alpha, double v, double pre_v)
-{
-	return (1 - alpha)*v + alpha*pre_v;
-}

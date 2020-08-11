@@ -271,13 +271,13 @@ void					Convert_Double_Array(double *pInputArray, int n);
 void					Error_AppendError(Error *perror, enum_Error err);
 /*------------ Vehicle Status update -------------*/
 void					Status_ParametersInit(Status *pstt);
-/*------------ Timer Function --------------------*/
 double                  sampleTimeCalc(uint32_t TIMx_Freq, uint16_t pres, uint32_t period);
 /*------------ Vehicle status functions ----------*/
 #define 				Veh_UpdateMaxVelocity(pveh, MaxVelocity)	(pveh)->Max_Velocity = (MaxVelocity);
 enum_Error              Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL]);
 enum_Command            Veh_MsgToCmd(char *);
 /*------------ PID Function ----------------------*/
+double                  filter(double alpha, double, double);
 void                    PID_SavePIDParaToFlash(FlashMemory *pflash, DCMotor *M1, DCMotor *M2);
 void                    PID_Compute(DCMotor *ipid, Time* pTime);
 void                    PID_UpdateSetVel(DCMotor* pMotor, double target_v);

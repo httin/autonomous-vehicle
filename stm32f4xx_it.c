@@ -375,8 +375,8 @@ void DMA2_Stream2_IRQHandler(void)
 						Reset_Motor();
 						Veh.Mode = Calib_Mode;
 						VehStt.Veh_Calib_Flag = Check_OK;
-						PID_UpdateSetVel(&M1, 40);
-						PID_UpdateSetVel(&M2, -40);
+						PID_UpdateSetVel(&M1, -30);
+						PID_UpdateSetVel(&M2, 30);
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"START"))
 					{

@@ -84,6 +84,5 @@
 void Robot_Run(double duty_v1, double duty_v2);
 void Encoder_Config(void);
 void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx, Time* pTime);
-double filter(double alpha, double v, double pre_v);
 
 #endif

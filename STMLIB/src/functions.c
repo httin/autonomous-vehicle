@@ -33,6 +33,11 @@ void	Status_ParametersInit(Status *pStatus)
 **	@agr    : void
 **	@retval : None
 **/
+double filter(double alpha, double x, double pre_x)
+{
+	return (1 - alpha)*x + alpha*pre_x;
+}
+
 void PID_Compute(DCMotor *ipid, Time* pTime)
 {
 	ipid->Error = ipid->current_set_v - ipid->current_v; // sample e(k)
@@ -41,6 +46,9 @@ void PID_Compute(DCMotor *ipid, Time* pTime)
 		ipid->Kp * (ipid->Error - ipid->Pre_Error) + 
 		0.5 * ipid->Ki * (pTime->velocity_T) * (ipid->Error + ipid->Pre_Error) + 
 		(ipid->Kd / (pTime->velocity_T)) * (ipid->Error - 2 * ipid->Pre_Error + ipid->Pre2_Error);
+
+	/* High Pass Filter */
+	ipid->PID_Out = filter(0.1, ipid->PID_Out, ipid->Pre_PID);
 
 	if (ipid->PID_Out < -100)
 		ipid->PID_Out = -100;
@@ -56,6 +64,7 @@ void PID_UpdateSetVel(DCMotor* pMotor, double target_v)
 {
 	pMotor->target_v = target_v;
 	pMotor->delta_v = (pMotor->target_v - pMotor->current_set_v) / 5;
+	pMotor->current_set_v = pMotor->target_v;
 }
 
 /** @brief  : PID update parameters function
@@ -117,7 +126,6 @@ int	LengthOfLine(uint8_t *inputmessage)
 	return length;
 }
 
-/* ----------------------- Timer functions -----------------------------------*/
 double sampleTimeCalc(uint32_t TIMx_Freq, uint16_t pres, uint32_t period)
 {
 	double res;
