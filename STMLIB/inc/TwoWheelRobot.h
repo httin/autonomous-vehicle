@@ -13,7 +13,7 @@ typedef struct SelfPosition
 } SelfPosition;
 
 void SelfPositionUpdateParams(SelfPosition *selfPos, double rpm_left, double rpm_right, double yaw, double sampleTime);
-void OverWritePosition(SelfPosition *selfPos, double x, double y);
+void updateSelfPos(SelfPosition *selfPos, double x, double y);
 
 extern SelfPosition selfPosition;
 

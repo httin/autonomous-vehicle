@@ -462,7 +462,7 @@ double Degree_To_Degree(double angle)
 void GPS_LatLonToUTM(GPS *pgps)
 {
 	double la, lo, lat, lon, sa, sb, e2, e2cuadrada, c, Huso, S, deltaS, a, epsilon, 
-		nu, v, ta, a1, a2, j2, j4, j6, alfa, beta, gama, Bm, xx, yy;
+		nu, v, ta, a1, a2, j2, j4, j6, alfa, beta, gama, Bm, xx, yy, dx, dy;
 	la = pgps->Latitude;
 	lo = pgps->Longitude;
 	sa = 6378137.00000;
@@ -496,7 +496,9 @@ void GPS_LatLonToUTM(GPS *pgps)
 		yy = 9999999 + yy;
 	}
 	
-	/* because CorX = CorY = 0 in the first time, so dx, dy will be > 3 */
+	dx = xx - pgps->CorX; // dx(k) = x(k) - x(k-1)
+	dy = yy - pgps->CorY; // dy(k) = y(k) - y(k-1)
+	/* because CorX = CorY = 0 in the first time */
 	if(pgps->CorX == 0)
 	{
 		pgps->Pre_CorX = pgps->CorX = xx;
@@ -504,14 +506,14 @@ void GPS_LatLonToUTM(GPS *pgps)
 		pgps->NewDataAvailable = 1;
 		pgps->Times = 0;
 	}
-	else if((fabs(xx - pgps->CorX) < 3.0) || (fabs(yy - pgps->CorY) < 3.0)) // If dx, dy > 3, then it is noise
+	else if(sqrt(dx*dx + dy*dy) < 1.5) 
 	{
 		pgps->Pre_CorX = pgps->CorX;
 		pgps->Pre_CorY = pgps->CorY;
 		pgps->CorX = xx;
 		pgps->CorY = yy;
-		pgps->dx = xx - pgps->Pre_CorX;
-		pgps->dy = yy - pgps->Pre_CorY;
+		pgps->dx = dx;
+		pgps->dy = dy;
 		pgps->NewDataAvailable = 1;
 		pgps->Times = 0;
 	}
@@ -672,34 +674,25 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_r
 	{
 		lower_bound = 0;
 		upper_bound = pgps->NbOfWayPoints;
-		pgps->dmin = 100000;
 	}
 	else 
 	{
-		if (pgps->index_of_reference_point <= SEARCH_OFFSET) 
-		{
-			lower_bound = 0;
-			upper_bound = pgps->index_of_reference_point + SEARCH_OFFSET;
-		}
-		else if (pgps->index_of_reference_point <= pgps->NbOfWayPoints - SEARCH_OFFSET)
-		{
-			lower_bound = pgps->index_of_reference_point - SEARCH_OFFSET;
-			upper_bound = pgps->index_of_reference_point + SEARCH_OFFSET;			
-		}
-		else 
-		{
-			lower_bound = pgps->index_of_reference_point - SEARCH_OFFSET;
-			upper_bound = pgps->NbOfWayPoints;
-		} 
+		lower_bound = Max(0, pgps->index_of_reference_point - SEARCH_OFFSET);
+		upper_bound = Min(pgps->NbOfWayPoints, pgps->index_of_reference_point + SEARCH_OFFSET);
 	}
 
 	for(i = lower_bound; i < upper_bound; ++i)
 	{
 		dx = pgps->currentPosX - pgps->P_X[i];
 		dy = pgps->currentPosY - pgps->P_Y[i];
-		d  = sqrt(pow(dx, 2) + pow(dy, 2));
+		d  = sqrt(dx*dx + dy*dy);
 
-		if(pgps->dmin > d) 
+		if(i == 0) 
+		{
+			pgps->dmin = d;
+			index = i;
+		}
+		else if(pgps->dmin > d) 
 		{
 			pgps->dmin = d; 
 			index = i;	// position of the minimum value
@@ -711,7 +704,7 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_r
 	{
 		dx = pgps->currentPosX - pgps->P_X[index];
 		dy = pgps->currentPosY - pgps->P_Y[index];
-		L = sqrt(pow(dx, 2) + pow(dy, 2));
+		L = sqrt(dx*dx + dy*dy);
 		index++;
 	}
 
@@ -723,7 +716,7 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_r
 	if(pgps->goal_radius <= 1)
 		GPS_NEO.Goal_Flag = Check_OK;
 	pgps->Thetae = Pi_To_Pi(pgps->heading_angle - pgps->P_Yaw[index]);
-	pgps->Thetad = -atan2(pgps->K * pgps->efa, pgps->Robot_Velocity);
+	pgps->Thetad = -atan2( (pgps->K) * (pgps->efa), (pgps->Robot_Velocity + 0.1));
 	pgps->Delta_Angle  = (pgps->Thetae + pgps->Thetad)*(double)180/pi; // degree
 }
 
@@ -1033,15 +1026,15 @@ void	Fuzzy_ParametersInit(void)
 {
 	/*   Input 1 (e = Set_theta - theta)  */
 	// NB : -2 - -0.17
-	Trapf_Update(&In1_NB,-2,-1,-0.22,-0.15);
+	Trapf_Update(&In1_NB,-2,-1,-0.22,-0.17);
 	// NS : 0.15 - 0.45
-	Trimf_Update(&In1_NS,-0.22,-0.11,-0.044);
+	Trimf_Update(&In1_NS,-0.22,-0.11,0);
 	// ZE : 0 - 0.2
-	Trimf_Update(&In1_ZE,-0.1,0,0.1);
+	Trimf_Update(&In1_ZE,-0.011,0,0.011);
 	// PS : 0.15 - 0.45
-	Trimf_Update(&In1_PS,0.044,0.11,0.22);
+	Trimf_Update(&In1_PS,0,0.11,0.22);
 	// PB : 0.4 - 1
-	Trapf_Update(&In1_PB,0.15,0.22,1,2);
+	Trapf_Update(&In1_PB,0.17,0.22,1,2);
 
 	/* Input 2 (edot = Set_thetadot - thetadot) */
 	// NE : 0.3 - 1
@@ -1071,18 +1064,15 @@ void SelectFuzzyOutput(double vel)
 		// NS : 
 		Trimf_Update(&In1_NS, -0.22, -0.11, -0.044);
 		// ZE :
-		Trimf_Update(&In1_ZE, -0.1, 0, 0.1);
+		Trimf_Update(&In1_ZE, -0.056, 0, 0.056);
 		// PS :
 		Trimf_Update(&In1_PS, 0.044, 0.11, 0.22);
 		// PB :
-		Trapf_Update(&In1_PB, 0.15, 0.22, 1, 2);
+		Trapf_Update(&In1_PB, 0.17, 0.22, 1, 2);
 
 		/* Input 2 (edot = Set_thetadot - thetadot) */
-		// NE :
 		Trapf_Update(&In2_NE, -2, -1, -0.4, -0.05);
-		// ZE : 
 		Trimf_Update(&In2_ZE, -0.4, 0, 0.4);
-		// PO : 
 		Trapf_Update(&In2_PO, 0.05, 0.4, 1, 2);
 		/* Output value */
 		NB = -0.95;

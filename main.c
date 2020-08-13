@@ -158,8 +158,6 @@ static void send_information(void){
 		temp_index = Veh.SendData_Ind;
 
 		Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "$VINFO,3,");
-		Veh.SendData_Ind += ToChar(Veh.Mode, &U6_TxBuffer[Veh.SendData_Ind], 1); 
-		U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 		Veh.SendData_Ind += ToChar(Veh.Max_Velocity, &U6_TxBuffer[Veh.SendData_Ind], 3); 
 		U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 		Veh.SendData_Ind += ToChar(Veh.Manual_Velocity, &U6_TxBuffer[Veh.SendData_Ind], 3); 
@@ -302,7 +300,6 @@ int main(void)
 
 	//PID_SaveManual();
 	//GPS_SaveManual();
-
 	while(1)
 	{
 		if(VehStt.Veh_SampleState)
@@ -317,39 +314,30 @@ int main(void)
 						if(VehStt.GPS_DataValid)
 						{
 							VehStt.GPS_DataValid = Check_NOK;
-							if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK) 
-								//|| (GPS_NEO.GPS_Quality == Mode_2D_3D)
-								)
+							if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
 							{
-								OverWritePosition(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
+								updateSelfPos(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
+								GPS_StanleyCompute();
+							}
+							else if(VehStt.GPS_SelfUpdatePosition_Flag)
+							{
+								SelfPositionUpdateParams(&selfPosition, M2.current_v, M1.current_v, Mag.Angle, Timer.T);
 								GPS_StanleyCompute();
 							}
 							else
 							{
-								if((VehStt.GPS_SelfUpdatePosition_Flag) && (VehStt.GPS_FirstGetPosition))
-								{
-									SelfPositionUpdateParams(&selfPosition, M2.current_v, M1.current_v, Mag.Angle, Timer.T);
-									GPS_UpdateCoordinateXY(&GPS_NEO, selfPosition.x, selfPosition.y);
-									GPS_StanleyCompute();
-								}
-								else
-								{
-									PID_UpdateSetVel(&M1, 0);
-									PID_UpdateSetVel(&M2, 0);
-								}
+								PID_UpdateSetVel(&M1, 0);
+								PID_UpdateSetVel(&M2, 0);
 							}
 						}
-						else if((VehStt.GPS_FirstGetPosition) && (VehStt.GPS_SelfUpdatePosition_Flag))
-						{
-							SelfPositionUpdateParams(&selfPosition, M2.current_v, M1.current_v, Mag.Angle, Timer.T);
-							GPS_UpdateCoordinateXY(&GPS_NEO, selfPosition.x, selfPosition.y);
-							GPS_StanleyCompute();
-						}
-						else if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK)
-							//|| (GPS_NEO.GPS_Quality == Mode_2D_3D)
-							)
+						else if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK)) // gps(k-1)
 						{
 							GPS_NEO.NewDataAvailable = 0;
+							GPS_StanleyCompute();
+						}
+						else if(VehStt.GPS_SelfUpdatePosition_Flag)
+						{
+							SelfPositionUpdateParams(&selfPosition, M2.current_v, M1.current_v, Mag.Angle, Timer.T);
 							GPS_StanleyCompute();
 						}
 						else

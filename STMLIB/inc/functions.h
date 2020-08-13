@@ -83,7 +83,6 @@ typedef struct Status{
 	enum_Status	       GPS_DataValid;               // Set when new gps packet is none error
 	enum_Status	       GPS_Start_Receive_PathCor;   // Starting receive map coordinate from C#
 	enum_Status	       GPS_SelfUpdatePosition_Flag; // 
-	enum_Status	       GPS_FirstGetPosition;        // 
 } Status;
 
 typedef struct Error{

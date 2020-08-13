@@ -250,14 +250,7 @@ void DMA1_Stream5_IRQHandler(void)
 
 		if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
 		{
-			/* first time get the Fix Mode */
-			if(!VehStt.GPS_FirstGetPosition)
-			{
-				VehStt.GPS_FirstGetPosition = Check_OK;
-				OverWritePosition(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
-				GPS_NEO.Pre_CorX = GPS_NEO.CorX;
-				GPS_NEO.Pre_CorY = GPS_NEO.CorY;
-			}
+			updateSelfPos(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
 		}
 	}
 	else
