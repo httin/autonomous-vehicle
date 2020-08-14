@@ -15,12 +15,12 @@
 void GPS_ReadParametersFromFlash(FlashMemory *pflash, GPS *pgps)
 {
 	ReadFromFlash(pflash, FLASH_GPSPara_BaseAddr);
-	GetMessageInfo((char*)pflash->ReadOutBuffer, Flash.Message, ',');
-	pgps->NbOfWayPoints = GetValueFromString(&Flash.Message[0][0]);
+	GetMessageInfo((char*)pflash->ReadOutBuffer, pflash->Message, ',');
+	pgps->NbOfWayPoints = GetValueFromString( (char*)pflash->Message);
 	for(int i = 0; i < pgps->NbOfWayPoints; i++)
 	{
-		pgps->Latitude 	= GetValueFromString(&Flash.Message[i * 2 + 1][0]);
-		pgps->Longitude	= GetValueFromString(&Flash.Message[i * 2 + 2][0]);
+		pgps->Latitude 	= GetValueFromString( (char*)&pflash->Message[i * 2 + 1][0] );
+		pgps->Longitude	= GetValueFromString( (char*)&pflash->Message[i * 2 + 2][0] );
 		GPS_LatLonToUTM(pgps);
 		pgps->P_X[i] = pgps->CorX;
 		pgps->P_Y[i] = pgps->CorY;
@@ -103,7 +103,7 @@ static void send_information(void){
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	Veh.SendData_Ind += ToChar(M2.current_v, &U6_TxBuffer[Veh.SendData_Ind], 3); // 5. M2 velocity
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(Mag.Set_Angle, &U6_TxBuffer[Veh.SendData_Ind], 3); // 6. Set angle
+	Veh.SendData_Ind += ToChar(Mag.Set_Angle, &U6_TxBuffer[Veh.SendData_Ind], 3); // 6. Reference angle
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	Veh.SendData_Ind += ToChar(Mag.Angle, &U6_TxBuffer[Veh.SendData_Ind], 3); // 7. Current angle
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
@@ -125,7 +125,7 @@ static void send_information(void){
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	Veh.SendData_Ind += ToChar(GPS_NEO.goal_radius, &U6_TxBuffer[Veh.SendData_Ind], 4); // 5. goal radius
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.index_of_reference_point, &U6_TxBuffer[Veh.SendData_Ind], 1); // 6. point's index
+	Veh.SendData_Ind += ToChar(GPS_NEO.refPointIndex, &U6_TxBuffer[Veh.SendData_Ind], 1); // 6. point's index
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 
 	checksum = LRCCalculate(&U6_TxBuffer[temp_index + 1], Veh.SendData_Ind - (temp_index + 1));
@@ -179,6 +179,9 @@ static void send_information(void){
 
 void GPS_StanleyCompute()
 {
+	if(GPS_NEO.Goal_Flag)
+		return;
+
 	if(Veh.Controller == Stanley_Controller)
 	{
 		GPS_StanleyControl(&GPS_NEO, Timer.T, M1.current_v, M2.current_v);
@@ -186,16 +189,16 @@ void GPS_StanleyCompute()
 	else if(Veh.Controller == Pursuit_Controller)
 	{
 		GPS_PursuitControl(&GPS_NEO, Timer.T, M1.current_v, M2.current_v);
-	}
+	}	
 
-	if(GPS_NEO.Goal_Flag)
+	if(GPS_NEO.goal_radius <= 1)
 	{
+		GPS_NEO.Goal_Flag = Check_OK;
 		PID_UpdateSetVel(&M1, 0);
 		PID_UpdateSetVel(&M2, 0);
-		return;
 	}
 
-	IMU_UpdateSetAngle(&Mag, GPS_NEO.Delta_Angle);
+	Mag.Set_Angle = Degree_To_Degree(Mag.Angle + GPS_NEO.Delta_Angle); // [-180, 180]
 	IMU_UpdateFuzzyInput(&Mag);
 	Mag.Fuzzy_Out = Defuzzification_Max_Min(Mag.Fuzzy_Error, Mag.Fuzzy_Error_dot);
 
@@ -314,14 +317,10 @@ int main(void)
 						if(VehStt.GPS_DataValid)
 						{
 							VehStt.GPS_DataValid = Check_NOK;
-							if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
+
+							if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK)
+								|| VehStt.GPS_SelfUpdatePosition_Flag)
 							{
-								updateSelfPos(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
-								GPS_StanleyCompute();
-							}
-							else if(VehStt.GPS_SelfUpdatePosition_Flag)
-							{
-								SelfPositionUpdateParams(&selfPosition, M2.current_v, M1.current_v, Mag.Angle, Timer.T);
 								GPS_StanleyCompute();
 							}
 							else
@@ -329,15 +328,12 @@ int main(void)
 								PID_UpdateSetVel(&M1, 0);
 								PID_UpdateSetVel(&M2, 0);
 							}
-						}
-						else if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK)) // gps(k-1)
-						{
+
 							GPS_NEO.NewDataAvailable = 0;
-							GPS_StanleyCompute();
 						}
-						else if(VehStt.GPS_SelfUpdatePosition_Flag)
+						else if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK) // gps(k-1)
+								|| VehStt.GPS_SelfUpdatePosition_Flag) 
 						{
-							SelfPositionUpdateParams(&selfPosition, M2.current_v, M1.current_v, Mag.Angle, Timer.T);
 							GPS_StanleyCompute();
 						}
 						else
@@ -353,8 +349,6 @@ int main(void)
 					}
 
 					Mag.Pre_Angle = Mag.Angle;
-					GPS_NEO.Pre_CorX = GPS_NEO.CorX;
-					GPS_NEO.Pre_CorY = GPS_NEO.CorY;
 					break;
 				
 				/*--------------- Manual mode section ----------------*/

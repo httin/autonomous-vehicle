@@ -80,13 +80,14 @@ typedef struct Status{
 	enum_Status	       Veh_Enable_SendData;         // Flag to ENABLE send data from vehicle, set/unset by F7/F8
 	enum_Status	       Veh_Calib_Flag;              // Calibration IMU 
 	enum_Status	       Veh_Auto_Flag;               // 
+	enum_Status	       Veh_Avoid_Flag;              // 
 	enum_Status	       GPS_DataValid;               // Set when new gps packet is none error
 	enum_Status	       GPS_Start_Receive_PathCor;   // Starting receive map coordinate from C#
 	enum_Status	       GPS_SelfUpdatePosition_Flag; // 
 } Status;
 
 typedef struct Error{
-	uint8_t			Error_Buffer[20];	/* enum_Error Code */
+	uint8_t			Error_Buffer[40];	/* enum_Error Code */
 	uint8_t			Error_Index; 		/* Current Index of Error_Buffer */
 } Error;
 
@@ -159,14 +160,8 @@ typedef struct GPS {
 	double              CorY; // y-coordinate converted from gps lat/lon to UTM [m]
 	double              currentPosX; // x current coordinate [m]
 	double              currentPosY; // y current coordinate [m]
-	double              Pre_CorX;
-	double              Pre_CorY;
-	double              dx;
-	double              dy;
-	int                 NewDataAvailable;
-	int                 Times;
-	int                 index_of_reference_point;
-	enum_Status         Goal_Flag;
+	double              wheelPosX;
+	double              wheelPosY;
 	double              goal_radius; // radius between goal and current position
 	double              efa;
 	/* Stanley control variables */
@@ -187,6 +182,9 @@ typedef struct GPS {
 	double              Longitude;
 	int                 NbOfWayPoints;
 	int                 NbOfP;
+	int                 NewDataAvailable;
+	int                 refPointIndex;
+	enum_Status         Goal_Flag;
 	enum_GPS_Quality    GPS_Quality;
 	enum_Error          GPS_Error;
 } GPS;
@@ -257,7 +255,6 @@ extern Vehicle         Veh;
 extern double          NB, NM, NS, ZE, PS, PM, PB;
 extern trimf           In1_NS, In1_ZE, In1_PS, In2_ZE;
 extern trapf           In1_NB, In1_PB, In2_NE, In2_PO;
-extern char	           TempBuffer[2][30];
 /*--------Export Function------------------------- */
 uint8_t 				ToChar(double value, uint8_t *pBuffer,int NbAfDot); // Convert double value to char array
 uint8_t					ToHex(uint8_t input);
@@ -300,7 +297,6 @@ void                    GPS_LatLonToUTM(GPS *pgps);  //Get 2 values of lat-lon a
 void                    GPS_ClearPathBuffer(GPS *pgps);
 void                    GPS_UpdatePathYaw(GPS *pgps);
 void                    GPS_SavePathCoordinateToFlash(GPS *pgps, FlashMemory *pflash);
-void                    GPS_UpdateCoordinateXY(GPS *pgps, double Cor_X, double Cor_Y);
 enum_Status	            GPS_HeaderCompare(uint8_t *s1, char Header[5]);
 enum_Error              GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,char result[MESSAGE_ROW][MESSAGE_COL]);
 /*--------Fuzzy control-------------------*/
@@ -317,7 +313,6 @@ double                  Defuzzification_Max_Min(double e, double edot);
 double                  Defuzzification2_Max_Min(double e, double edot);
 
 /*--------IMU functions ---------*/
-void                    IMU_UpdateSetAngle(IMU *pimu, double ComAngle);
 void                    IMU_UpdateFuzzyInput(IMU *pimu);
 void                    IMU_UpdateFuzzyCoefficients(IMU *pimu, double Ke, double Kedot, double Ku);
 enum_Error              IMU_GetValueFromMessage(IMU *pimu, uint8_t *inputmessage);

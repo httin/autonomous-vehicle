@@ -178,6 +178,7 @@ void Reset_Motor()
 	Veh.Manual_Velocity = 0;
 	Veh.Manual_Angle = 0;
 	VehStt.Veh_Auto_Flag = Check_NOK;
+	VehStt.Veh_Avoid_Flag = Check_NOK;
 }
 
 
@@ -247,7 +248,6 @@ void DMA1_Stream5_IRQHandler(void)
 	if(GPS_NEO.GPS_Error == Veh_NoneError)
 	{
 		VehStt.GPS_DataValid = Check_OK;
-
 		if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
 		{
 			updateSelfPos(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
@@ -256,7 +256,7 @@ void DMA1_Stream5_IRQHandler(void)
 	else
 	{
 		VehStt.GPS_DataValid = Check_NOK;
-		Error_AppendError(&Veh_Error, Veh.Veh_Error);
+		Error_AppendError(&Veh_Error, GPS_NEO.GPS_Error);
 	}
 	DMA_Cmd(DMA1_Stream5, ENABLE);
 }

@@ -175,7 +175,7 @@ void Encoder_Config(void)
 /*
  * 1 resolution = 39400 pulses encoder
  * 10ms velocity sampling -> 1 pulse/10ms ~ 100 pulses/s ~  0.9137 degree/s
- *                        or 1 pulse/10ms ~ 6000 pulses/m ~ 0.1523 resolution 
+ *                        or 1 pulse/10ms ~ 6000 pulses/m ~ 0.1523 rpm
  */
 void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx, Time* pTime)
 {
