@@ -193,6 +193,7 @@ typedef	struct Vehicle
 {
 	double             Max_Velocity; // in RPM
 	double             Manual_Velocity; // in RPM
+	double             Auto_Velocity;
 	double             Manual_Angle; // in degree
 	double             Sensor_Angle;
 	enum_Mode          Mode;
@@ -250,7 +251,7 @@ extern FlashMemory     Flash;
 extern DCMotor         M1, M2;
 extern IMU             Mag;
 extern GPS             GPS_NEO;
-extern Message         U2, U6; // USART2 & USART6 message
+extern Message         U1, U2, U6; // USART2 & USART6 message
 extern Vehicle         Veh;
 extern double          NB, NM, NS, ZE, PS, PM, PB;
 extern trimf           In1_NS, In1_ZE, In1_PS, In2_ZE;

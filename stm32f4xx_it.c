@@ -174,7 +174,6 @@ void Reset_Motor()
 	PID_UpdateSetVel(&M2, 0);
 	PID_ResetPID(&M1);
 	PID_ResetPID(&M2);
-	Stop_Motor();
 	Veh.Manual_Velocity = 0;
 	Veh.Manual_Angle = 0;
 	VehStt.Veh_Auto_Flag = Check_NOK;
@@ -216,14 +215,38 @@ void USART1_IRQHandler(void)
 void DMA2_Stream5_IRQHandler(void)
 {
 	DMA_ClearITPendingBit(DMA2_Stream5, DMA_IT_TCIF5);
-	if( (Veh.Veh_Error = IMU_GetValueFromMessage(&Mag, U1_RxBuffer)) == Veh_NoneError )
+	if(U1_RxBuffer[0] == 0x0A)
 	{
-		if((!VehStt.IMU_FirstGetAngle))
+		if( (Veh.Veh_Error = IMU_GetValueFromMessage(&Mag, U1_RxBuffer)) == Veh_NoneError )
 		{
-			Mag.Set_Angle = Mag.Angle;
-			VehStt.IMU_FirstGetAngle = Check_OK; // from now on, angle read from IMU won't impact Set Angle
+			if((!VehStt.IMU_FirstGetAngle))
+			{
+				Mag.Set_Angle = Mag.Angle;
+				VehStt.IMU_FirstGetAngle = Check_OK; // from now on, angle read from IMU won't impact Set Angle
+			}
 		}
 	}
+#ifdef OBSTACLE_AVOID
+	else if (U1_RxBuffer[0] == '$') 
+	{
+		if(Veh_SplitMsg(U1_RxBuffer, U1.Message) == Veh_NoneError)      
+		{
+			if(StringHeaderCompare(U1.Message[0], "$PCDAT")) 
+			{
+				if(U1.Message[1][0] == '0')
+				{
+					VehStt.Veh_Avoid_Flag = Check_NOK;
+				}
+				else if(U1.Message[1][0] == '1')
+				{
+					VehStt.Veh_Avoid_Flag = Check_OK;
+					Veh.Auto_Velocity = MPS2RPM(GetValueFromString(&U1.Message[2][0]));
+					GPS_NEO.Delta_Angle = GetValueFromString(&U1.Message[3][0]);
+				}
+			}
+		}
+	}
+#endif
 	DMA_Cmd(DMA2_Stream5, ENABLE);
 }
 
@@ -439,12 +462,12 @@ void DMA2_Stream2_IRQHandler(void)
 					{
 						Reset_Motor();
 						Veh.Mode = Auto_Mode;
-						GPS_NEO.Goal_Flag = Check_NOK;
 						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"STOP"))
 					{
 						Reset_Motor();
+						Veh.Mode = None_Mode;
 						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"RUN"))

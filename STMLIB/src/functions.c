@@ -11,7 +11,7 @@ FlashMemory     Flash;
 DCMotor         M1, M2;
 IMU	            Mag;
 GPS             GPS_NEO;
-Message         U2, U6;
+Message         U1, U2, U6;
 Vehicle	        Veh;
 double          NB, NM, NS, ZE, PS, PM, PB; // Sugeno output 
 trimf           In1_NS, In1_ZE, In1_PS, In2_ZE;
@@ -81,9 +81,9 @@ void PID_ParametersUpdate(DCMotor *ipid, double Kp, double Ki, double Kd)
 **/
 void	PID_ResetPID(DCMotor *ipid)
 {
-	ipid->Pre_PID = 0;
-	ipid->Pre_Error = 0;
-	ipid->Pre2_Error = 0;
+	ipid->Pre_PID = 0;    // e(k)
+	ipid->Pre_Error = 0;  // e(k-1)
+	ipid->Pre2_Error = 0; // e(k-2)
 }
 
 /** @brief  : PID Save parameters to interflash memory

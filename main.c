@@ -182,14 +182,18 @@ void GPS_StanleyCompute()
 	if(GPS_NEO.Goal_Flag)
 		return;
 
-	if(Veh.Controller == Stanley_Controller)
+	if(!VehStt.Veh_Avoid_Flag)
 	{
-		GPS_StanleyControl(&GPS_NEO, Timer.T, M1.current_v, M2.current_v);
+		if(Veh.Controller == Stanley_Controller)
+		{
+			GPS_StanleyControl(&GPS_NEO, Timer.T, M1.current_v, M2.current_v);
+		}
+		else if(Veh.Controller == Pursuit_Controller)
+		{
+			GPS_PursuitControl(&GPS_NEO, Timer.T, M1.current_v, M2.current_v);
+		}
+		Veh.Auto_Velocity = Veh.Max_Velocity;
 	}
-	else if(Veh.Controller == Pursuit_Controller)
-	{
-		GPS_PursuitControl(&GPS_NEO, Timer.T, M1.current_v, M2.current_v);
-	}	
 
 	if(GPS_NEO.goal_radius <= 1)
 	{
@@ -204,13 +208,13 @@ void GPS_StanleyCompute()
 
 	if(Mag.Fuzzy_Out >= 0)
 	{
-		PID_UpdateSetVel(&M1, (1 - fabs(Mag.Fuzzy_Out)) * Veh.Max_Velocity);
-		PID_UpdateSetVel(&M2, (1 + fabs(Mag.Fuzzy_Out)) * Veh.Max_Velocity);
+		PID_UpdateSetVel(&M1, (1 - fabs(Mag.Fuzzy_Out)) * Veh.Auto_Velocity);
+		PID_UpdateSetVel(&M2, (1 + fabs(Mag.Fuzzy_Out)) * Veh.Auto_Velocity);
 	}
 	else
 	{
-		PID_UpdateSetVel(&M1, (1 + fabs(Mag.Fuzzy_Out)) * Veh.Max_Velocity);
-		PID_UpdateSetVel(&M2, (1 - fabs(Mag.Fuzzy_Out)) * Veh.Max_Velocity);
+		PID_UpdateSetVel(&M1, (1 + fabs(Mag.Fuzzy_Out)) * Veh.Auto_Velocity);
+		PID_UpdateSetVel(&M2, (1 - fabs(Mag.Fuzzy_Out)) * Veh.Auto_Velocity);
 	}
 
 }
@@ -276,7 +280,7 @@ static void Parameters_Init(void)
 	/* ------------------ Vehicle ------------------ */
 	Veh = (Vehicle) {
 		.Max_Velocity = MPS2RPM(1),
-		.Mode = KeyBoard_Mode,
+		.Mode = None_Mode,
 		.Veh_Error = Veh_NoneError,
 		.Controller = Stanley_Controller
 	};
