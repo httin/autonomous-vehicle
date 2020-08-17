@@ -136,12 +136,14 @@ static void DirPinConfig(void)
 	GPIO_Init(Dir_GPIOx, &En_GPIO_Struct);
 }
 
-void Robot_Run(double duty_v1, double duty_v2)
+void Robot_RunVersion1(double duty_v1, double duty_v2)
 {
 	if (duty_v1 >= 0 && duty_v2 >= 0) // v1 > 0 && v2 > 0
 	{
 		Robot_Forward();
 		PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * PWM_PERIOD) / 100);
+		if (duty_v2 < 15)
+			duty_v2 -= 3;
 		PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * PWM_PERIOD) / 100);
 	} else if (duty_v1 >= 0 && duty_v2 <= 0) // v1 > 0 && v2 < 0
 	{
@@ -151,6 +153,8 @@ void Robot_Run(double duty_v1, double duty_v2)
 	} else if (duty_v1 <= 0 && duty_v2 >= 0) // v1 < 0 && v2 > 0
 	{
 		Robot_Clockwise();
+		if (duty_v2 < 15)
+			duty_v2 -= 3;
 		PWM_TIMx->CCR1 = (uint16_t)((-duty_v1 * PWM_PERIOD) / 100);
 		PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * PWM_PERIOD) / 100);
 	} else if (duty_v1 <= 0 && duty_v2 <= 0) // v1 < 0 && v2 < 0
@@ -161,6 +165,43 @@ void Robot_Run(double duty_v1, double duty_v2)
 	} else {
 		Stop_Motor();
 	}
+}
+
+void Robot_RunVersion2(double duty_v1, double duty_v2)
+{
+	if(duty_v1 >= 0)
+	{
+		M1_Forward();
+		if(duty_v2 >= 0)
+		{
+			M2_Forward();
+			if (duty_v2 > 14 && duty_v2 < 17)
+				duty_v2 -= 4;
+		}
+		else 
+		{
+			duty_v2 = -duty_v2;
+			M2_Backward();
+		}
+	}
+	else 
+	{
+		duty_v1 = -duty_v1;
+		M1_Backward();
+		if(duty_v2 >= 0)
+		{
+			M2_Forward();
+			if (duty_v2 > 13 && duty_v2 < 16)
+				duty_v2 -= 5;
+		}
+		else 
+		{
+			duty_v2 = -duty_v2;
+			M2_Backward();
+		}
+	}
+	PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * PWM_PERIOD) / 100);
+	PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * PWM_PERIOD) / 100);
 }
 
 void Encoder_Config(void)

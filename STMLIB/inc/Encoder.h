@@ -81,7 +81,8 @@
 	PWM_TIMx->CCR1 = 0;\
 	PWM_TIMx->CCR2 = 0;
 
-void Robot_Run(double duty_v1, double duty_v2);
+void Robot_RunVersion1(double duty_v1, double duty_v2);
+void Robot_RunVersion2(double duty_v1, double duty_v2);
 void Encoder_Config(void);
 void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx, Time* pTime);
 

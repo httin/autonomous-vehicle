@@ -19,8 +19,8 @@ trapf           In1_NB, In1_PB, In2_NE, In2_PO;
 /*----- Error functions -----------------------------------*/
 void Error_AppendError(Error *perror, enum_Error err)
 {
-	if (perror->Error_Index < 20)
-		perror->Error_Buffer[perror->Error_Index++] = err;
+	perror->Error_Buffer[perror->Error_Index % 40] = err;
+	++perror->Error_Index;
 }
 /*----- Init, and function to config vehicle status -------*/
 void Status_ParametersInit(Status *pStatus)
@@ -47,7 +47,7 @@ void PID_Compute(DCMotor *ipid, Time* pTime)
 		(ipid->Kd / (pTime->velocity_T)) * (ipid->Error - 2 * ipid->Pre_Error + ipid->Pre2_Error);
 
 	/* High Pass Filter */
-	ipid->PID_Out = filter(0.1, ipid->PID_Out, ipid->Pre_PID);
+	ipid->PID_Out = filter(0.08, ipid->PID_Out, ipid->Pre_PID);
 
 	if (ipid->PID_Out < -100)
 		ipid->PID_Out = -100;
@@ -110,6 +110,7 @@ void	PID_SavePIDParaToFlash(FlashMemory *pflash, DCMotor *M1, DCMotor *M2)
 }
 
 /** @brief  : Calculate length of a line (end with 0x0D,0x0A "\r\n")
+**            Ex: "$ab,cd\r\n" -> length = 6, "$ab,cd\0" -> length = 6
 **  @agr    : Input buffer
 **  @retval : Length
 **/
@@ -117,10 +118,9 @@ int	LengthOfLine(uint8_t *inputmessage)
 {
 	int length = 0;
 	while(	(inputmessage[length] != 0) &&
-			(inputmessage[length] != 0x0D) && 
-			(inputmessage[length + 1] != 0x0A))
+			(inputmessage[length] != 0x0D) && (inputmessage[length + 1] != 0x0A))
 	{
-		length++;
+		++length;
 	}
 	return length;
 }
@@ -135,7 +135,7 @@ double sampleTimeCalc(uint32_t TIMx_Freq, uint16_t pres, uint32_t period)
 /*------------------------ Vehicle Status Function ----------------------------*/
 enum_Error	Veh_SplitMsg(uint8_t *inputmessage, char result[MESSAGE_ROW][MESSAGE_COL])
 {
-	int length = LengthOfLine(inputmessage); // Ex: "$ab,cd\r\n" -> length = 6, "$ab,cd\0" -> length = 6
+	int length = LengthOfLine(inputmessage); 
 	if(IsCorrectMessage((uint8_t*)&inputmessage[1], length - 3, inputmessage[length - 2], inputmessage[length - 1]))
 	{
 		GetMessageInfo((char*)inputmessage, result, ',');
@@ -399,15 +399,15 @@ int FeedBack(uint8_t *out_str, char *ref_str)
 	{
 		out_str[i] = ref_str[i];
 
-		if(ref_str[i] == 0x0D && ref_str[i + 1] == 0x0A) 
+		if(out_str[i] == 0x0A) // end condition
 		{
-			++i;
-			out_str[i] = 0x0A; // '\n'
+			if(out_str[i - 1] == 0x0D)
+				return i + 1;
 			break;
 		}
 		++i;
 	}
-	return i + 1;
+	return 0;
 }
 
 void Convert_Double_Array(double *pInputArray, int n)
@@ -501,8 +501,8 @@ void GPS_LatLonToUTM(GPS *pgps)
 	/* because CorX = CorY = 0 in the first time */
 	if(pgps->CorX == 0)
 	{
-		pgps->CorX = xx;
-		pgps->CorY = yy;
+		pgps->currentPosX = pgps->CorX = xx;
+		pgps->currentPosY = pgps->CorY = yy;
 		pgps->NewDataAvailable = 1;
 	}
 	else if(sqrt(dx*dx + dy*dy) < 1) 
@@ -629,7 +629,7 @@ void GPS_ClearPathBuffer(GPS *pgps)
 **  @agr    : current pose of the robot and Pathx, Pathy
 **  @retval : Steering angle
 **/
-void GPS_StanleyControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_rpm)
+void GPS_StanleyControl(GPS *pgps, double v1_rpm, double v2_rpm)
 {
 	double dx, dy, d;
 	int index = 0, i, upper_bound, lower_bound;
@@ -708,7 +708,7 @@ void GPS_StanleyControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_r
 **  @agr    : current pose of the robot and Pathx, Pathy
 **  @retval : Steering angle
 **/
-void GPS_PursuitControl(GPS *pgps, double SampleTime, double v1_rpm, double v2_rpm)
+void GPS_PursuitControl(GPS *pgps, double v1_rpm, double v2_rpm)
 {                   /*   Current pose of the robot   / /  Path coordinate  / /  ThetaP  */
 	double dx,dy,d;
 	int index = 0, i, upper_bound, lower_bound;
@@ -801,77 +801,39 @@ enum_Status	GPS_HeaderCompare(uint8_t *s1, char Header[5])
 **  @agr    : GPS and Inputmessage
 **  @retval : None
 **/
-enum_Error	GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,	char result[MESSAGE_ROW][MESSAGE_COL])
+enum_Error	GPS_NMEA_Message(GPS *pgps, uint8_t *inputmessage,	char result[MESSAGE_ROW][MESSAGE_COL])
 {
-	int Message_Index = 0, GxGGA_Index = -1, Length = 0;
-#ifdef USE_GxGLL
-	int GxGLL_Index = -1;
-#endif
+	int Message_Index = 0, Length = 0;
+
 	while(inputmessage[Message_Index] != '\0' && (Message_Index < ROVER_RX_BUFFERSIZE))
 	{
-		/* Because GxGGA come before GxGLL */
+		/* Because GxGGA come first in NMEA */
 		if(inputmessage[Message_Index] == (uint8_t)'$')
 		{
 			if(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGGA"))
 			{
-				GxGGA_Index = Message_Index;
-#ifndef USE_GxGLL
-				break;
-#else
-			}
-			else if(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGLL"))
-			{
-				GxGLL_Index = Message_Index;
-				break;
-#endif
+				Length = LengthOfLine(&inputmessage[Message_Index]);
+
+				if( IsCorrectMessage(&inputmessage[Message_Index + 1], Length - 4, 
+					inputmessage[Message_Index + Length - 2], 
+					inputmessage[Message_Index + Length - 1]) )
+				{
+					GetMessageInfo( (char *)&inputmessage[Message_Index], result, ',');
+					if ( (pgps->GPS_Quality = (enum_GPS_Quality) GetValueFromString(&result[6][0])) != 0 )
+					{
+						GPS_NEO.Latitude = GPS_StringToLat(&result[2][0]); 
+						GPS_NEO.Longitude = GPS_StringToLng(&result[4][0]); 
+						GPS_LatLonToUTM(&GPS_NEO);
+					} 
+					else 
+						return GPS_DataUnvalid;
+				} 
+				else 
+					return GPS_GxGGACheckSum_Err;
 			}
 		}
 		++Message_Index;
 	}
-
-#ifdef USE_GxGLL
-	if(GxGLL_Index != -1)
-	{
-		Length = LengthOfLine(&inputmessage[GxGLL_Index]);
-		GetMessageInfo( (char *)&inputmessage[GxGLL_Index], result, ',');
-		if( IsCorrectMessage(&inputmessage[GxGLL_Index + 1], Length - 4, 
-			inputmessage[GxGLL_Index + Length - 2], 
-			inputmessage[GxGLL_Index + Length - 1]) )
-		{
-			if(result[6][0] == 'A') // Block STATUS, 'A': data valid, 'V': data not valid
-			{
-				// Latitude range is from 0 to 90 and longitude is range from 0 to 180.
-				GPS_NEO.Latitude = GPS_StringToLat(&result[1][0]); 
-				GPS_NEO.Longitude = GPS_StringToLng(&result[3][0]); 
-				GPS_LatLonToUTM(&GPS_NEO);
-			} else 
-				return GPS_DataUnvalid;
-		} else 
-			return GPS_GxGLLCheckSum_Err;
-	} else
-		return GPS_GxGLLMessage_Err;
-#endif
-
-	if(GxGGA_Index != -1)
-	{
-		Length = LengthOfLine(&inputmessage[GxGGA_Index]);
-		GetMessageInfo( (char *)&inputmessage[GxGGA_Index], result, ',');
-		if( IsCorrectMessage(&inputmessage[GxGGA_Index + 1], Length - 4, 
-			inputmessage[GxGGA_Index + Length - 2], 
-			inputmessage[GxGGA_Index + Length - 1]) )
-		{
-			if ( (pgps->GPS_Quality = (enum_GPS_Quality) GetValueFromString(&result[6][0])) != 0 )
-			{
-				GPS_NEO.Latitude = GPS_StringToLat(&result[2][0]); 
-				GPS_NEO.Longitude = GPS_StringToLng(&result[4][0]); 
-				GPS_LatLonToUTM(&GPS_NEO);
-			} else 
-				return GPS_DataUnvalid;
-		} else 
-			return GPS_GxGGACheckSum_Err;
-	} else 
-		return GPS_GxGGAMessage_Err;
-
 	return Veh_NoneError;
 }
 

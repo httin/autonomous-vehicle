@@ -88,6 +88,28 @@ int append_string_to_buffer(uint8_t *buf, const char *str)
     return i;
 }
 
+static void send_VDATA(void){
+	int index = 0;
+	uint8_t checksum;
+
+	index += append_string_to_buffer(&U1_TxBuffer[index], "$VDATA,");
+	index += ToChar(GPS_NEO.currentPosX, &U1_TxBuffer[index], 8);
+	U1_TxBuffer[index++] = (uint8_t)',';
+	index += ToChar(GPS_NEO.currentPosY, &U1_TxBuffer[index], 8);
+	U1_TxBuffer[index++] = (uint8_t)',';
+	index += ToChar(GPS_NEO.heading_angle, &U1_TxBuffer[index], 5);
+	U1_TxBuffer[index++] = (uint8_t)',';
+	index += ToChar(GPS_NEO.refPointIndex, &U1_TxBuffer[index], 1);
+	U1_TxBuffer[index++] = (uint8_t)',';
+
+	checksum = LRCCalculate(&U1_TxBuffer[1], index - 1);
+	U1_TxBuffer[index++] = ToHex((checksum & 0xF0) >> 4);
+	U1_TxBuffer[index++] = ToHex(checksum & 0x0F);
+	index += append_string_to_buffer(&U1_TxBuffer[index], "\r\n");	
+
+	U1_SendData(index);
+}
+
 static void send_information(void){
 	int temp_index;
 	uint8_t checksum;
@@ -113,39 +135,23 @@ static void send_information(void){
 	U6_TxBuffer[Veh.SendData_Ind++] = ToHex(checksum & 0x0F);
 	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "\r\n");
 
-	/* -------------------------------- gps information -------------------------------- */
-	temp_index = Veh.SendData_Ind;
-
-	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "$VINFO,1,");
-	Veh.SendData_Ind += ToChar(GPS_NEO.GPS_Quality, &U6_TxBuffer[Veh.SendData_Ind], 1); // 2. gps rover quality
-	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.Latitude, &U6_TxBuffer[Veh.SendData_Ind], 7); // 3. gps Latitude
-	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.Longitude, &U6_TxBuffer[Veh.SendData_Ind], 7); // 4. gps Longitude
-	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.goal_radius, &U6_TxBuffer[Veh.SendData_Ind], 4); // 5. goal radius
-	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.refPointIndex, &U6_TxBuffer[Veh.SendData_Ind], 1); // 6. point's index
-	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-
-	checksum = LRCCalculate(&U6_TxBuffer[temp_index + 1], Veh.SendData_Ind - (temp_index + 1));
-	U6_TxBuffer[Veh.SendData_Ind++] = ToHex((checksum & 0xF0) >> 4);
-	U6_TxBuffer[Veh.SendData_Ind++] = ToHex(checksum & 0x0F);
-	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "\r\n");
-
 	/* -------------------------------- stanley information --------------------------------*/
 	temp_index = Veh.SendData_Ind;
 
-	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "$VINFO,2,");
-	Veh.SendData_Ind += ToChar(GPS_NEO.Thetae * (180/pi), &U6_TxBuffer[Veh.SendData_Ind],3);
+	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "$VINFO,1,");
+	Veh.SendData_Ind += ToChar(GPS_NEO.Thetae * (180/pi), &U6_TxBuffer[Veh.SendData_Ind],3); // 2.
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.Thetad * (180/pi), &U6_TxBuffer[Veh.SendData_Ind],3);
+	Veh.SendData_Ind += ToChar(GPS_NEO.Thetad * (180/pi), &U6_TxBuffer[Veh.SendData_Ind],3); // 3. 
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.Delta_Angle, &U6_TxBuffer[Veh.SendData_Ind],3);
+	Veh.SendData_Ind += ToChar(GPS_NEO.Delta_Angle, &U6_TxBuffer[Veh.SendData_Ind],3); // 4.
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.dmin, &U6_TxBuffer[Veh.SendData_Ind],3);
+	Veh.SendData_Ind += ToChar(GPS_NEO.dmin, &U6_TxBuffer[Veh.SendData_Ind],3); // 5.
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.efa, &U6_TxBuffer[Veh.SendData_Ind],3);
+	Veh.SendData_Ind += ToChar(GPS_NEO.efa, &U6_TxBuffer[Veh.SendData_Ind],3); // 6.
+	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
+	Veh.SendData_Ind += ToChar(GPS_NEO.goal_radius, &U6_TxBuffer[Veh.SendData_Ind], 4); // 7. goal radius
+	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
+	Veh.SendData_Ind += ToChar(GPS_NEO.refPointIndex, &U6_TxBuffer[Veh.SendData_Ind], 1); // 8. point's index
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	
 	checksum = LRCCalculate(&U6_TxBuffer[temp_index + 1], Veh.SendData_Ind - (temp_index + 1));
@@ -186,20 +192,13 @@ void GPS_StanleyCompute()
 	{
 		if(Veh.Controller == Stanley_Controller)
 		{
-			GPS_StanleyControl(&GPS_NEO, Timer.T, M1.current_v, M2.current_v);
+			GPS_StanleyControl(&GPS_NEO, M1.current_v, M2.current_v);
 		}
 		else if(Veh.Controller == Pursuit_Controller)
 		{
-			GPS_PursuitControl(&GPS_NEO, Timer.T, M1.current_v, M2.current_v);
+			GPS_PursuitControl(&GPS_NEO, M1.current_v, M2.current_v);
 		}
 		Veh.Auto_Velocity = Veh.Max_Velocity;
-	}
-
-	if(GPS_NEO.goal_radius <= 1)
-	{
-		GPS_NEO.Goal_Flag = Check_OK;
-		PID_UpdateSetVel(&M1, 0);
-		PID_UpdateSetVel(&M2, 0);
 	}
 
 	Mag.Set_Angle = Degree_To_Degree(Mag.Angle + GPS_NEO.Delta_Angle); // [-180, 180]
@@ -217,6 +216,12 @@ void GPS_StanleyCompute()
 		PID_UpdateSetVel(&M2, (1 - fabs(Mag.Fuzzy_Out)) * Veh.Auto_Velocity);
 	}
 
+	if(GPS_NEO.goal_radius <= 1)
+	{
+		GPS_NEO.Goal_Flag = Check_OK;
+		PID_UpdateSetVel(&M1, 0);
+		PID_UpdateSetVel(&M2, 0);
+	}
 }
 
 
@@ -316,6 +321,7 @@ int main(void)
 				/*-------------- Auto mode section ------------------*/
 				/*---------------------------------------------------*/
 				case Auto_Mode:
+
 					if(VehStt.Veh_Auto_Flag)
 					{
 						if(VehStt.GPS_DataValid)
@@ -351,7 +357,7 @@ int main(void)
 						PID_UpdateSetVel(&M1, 0);
 						PID_UpdateSetVel(&M2, 0);
 					}
-
+					send_VDATA();
 					Mag.Pre_Angle = Mag.Angle;
 					break;
 				
@@ -427,7 +433,7 @@ int main(void)
 
 			PID_Compute(&M1, &Timer);
 			PID_Compute(&M2, &Timer);
-			Robot_Run(M1.PID_Out, M2.PID_Out);
+			Robot_RunVersion2(M1.PID_Out, M2.PID_Out);
 			VehStt.Veh_SampleVelo = Check_NOK;
 		}
 

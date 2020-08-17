@@ -21,12 +21,8 @@ typedef enum{
 	Veh_NoneError = 0,
 
 	GPS_DataUnvalid,
-	GPS_GxGGAMessage_Err,		// GPS
 	GPS_GxGGACheckSum_Err,		// GPS: GxGGA Checksum Error
-#ifdef GxGLL
-	GPS_GxGLLMessage_Err,		// GPS
-	GPS_GxGLLCheckSum_Err,		// GPS: GxGLL CheckSum Error
-#endif
+
 	LORA_WrongCheckSum, // Lora: message was received from PC is wrong
 	IMU_WrongMessage,  // IMU: Receive wrong message format, see IMU_GetValueFromMessage()
 }enum_Error;
@@ -289,8 +285,8 @@ enum_Status             StringHeaderCompare(char *s1, char header[]);
 int                     FeedBack(uint8_t *outputmessage, char *inputstring);
 /*--------Stanley functions and GPS --------------*/
 void                    GPS_ParametersInit(GPS *pgps);
-void                    GPS_StanleyControl(GPS *pgps, double SampleTime, double M1Velocity, double M2Velocity);
-void                    GPS_PursuitControl(GPS *pgps, double SampleTime, double M1Velocity, double M2Velocity);
+void                    GPS_StanleyControl(GPS *pgps, double M1Velocity, double M2Velocity);
+void                    GPS_PursuitControl(GPS *pgps, double M1Velocity, double M2Velocity);
 double                  GPS_DMS_To_DD(double LL);
 double	                GPS_StringToLat(char *inputmessage);
 double                  GPS_StringToLng(char *inputmessage);
@@ -299,7 +295,7 @@ void                    GPS_ClearPathBuffer(GPS *pgps);
 void                    GPS_UpdatePathYaw(GPS *pgps);
 void                    GPS_SavePathCoordinateToFlash(GPS *pgps, FlashMemory *pflash);
 enum_Status	            GPS_HeaderCompare(uint8_t *s1, char Header[5]);
-enum_Error              GPS_GetLLQMessage(GPS *pgps, uint8_t *inputmessage,char result[MESSAGE_ROW][MESSAGE_COL]);
+enum_Error              GPS_NMEA_Message(GPS *pgps, uint8_t *inputmessage,char result[MESSAGE_ROW][MESSAGE_COL]);
 /*--------Fuzzy control-------------------*/
 #define Min(a, b)		((a) < (b)) ? (a) : (b)
 #define Max(a, b)		((a) < (b)) ? (b) : (a)

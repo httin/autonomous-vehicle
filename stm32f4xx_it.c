@@ -226,7 +226,6 @@ void DMA2_Stream5_IRQHandler(void)
 			}
 		}
 	}
-#ifdef OBSTACLE_AVOID
 	else if (U1_RxBuffer[0] == '$') 
 	{
 		if(Veh_SplitMsg(U1_RxBuffer, U1.Message) == Veh_NoneError)      
@@ -246,7 +245,7 @@ void DMA2_Stream5_IRQHandler(void)
 			}
 		}
 	}
-#endif
+
 	DMA_Cmd(DMA2_Stream5, ENABLE);
 }
 
@@ -266,10 +265,12 @@ void USART2_IRQHandler(void)
 void DMA1_Stream5_IRQHandler(void)
 {
 	DMA_ClearITPendingBit(DMA1_Stream5, DMA_IT_TCIF5);
-	GPS_NEO.GPS_Error = GPS_GetLLQMessage(&GPS_NEO, U2_RxBuffer, U2.Message);
+	GPS_NEO.GPS_Error = GPS_NMEA_Message(&GPS_NEO, U2_RxBuffer, U2.Message);
 
 	if(GPS_NEO.GPS_Error == Veh_NoneError)
 	{
+		U6_SendData(FeedBack(U6_TxBuffer, U2_RxBuffer));
+		
 		VehStt.GPS_DataValid = Check_OK;
 		if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
 		{
