@@ -269,7 +269,7 @@ void DMA1_Stream5_IRQHandler(void)
 
 	if(GPS_NEO.GPS_Error == Veh_NoneError)
 	{
-		U6_SendData(FeedBack(U6_TxBuffer, U2_RxBuffer));
+		// U6_SendData(FeedBack(U6_TxBuffer, U2_RxBuffer));
 		
 		VehStt.GPS_DataValid = Check_OK;
 		if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))

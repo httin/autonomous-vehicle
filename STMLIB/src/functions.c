@@ -59,6 +59,25 @@ void PID_Compute(DCMotor *ipid, Time* pTime)
 	ipid->Pre_PID = ipid->PID_Out; // u(k-1) = u(k)
 }
 
+void PID_Continious(DCMotor *ipid, Time* pTime)
+{
+	ipid->Error = ipid->current_set_v - ipid->current_v; // sample e(k)
+
+	ipid->PID_Out = ipid->Kp * ipid->Error
+					+ ipid->Ki * (ipid->Error + ipid->Pre_Error)
+					+ ipid->Kd * (ipid->Error - ipid->Pre_Error);
+
+	ipid->PID_Out = filter(0.08, ipid->PID_Out, ipid->Pre_PID);
+
+	if (ipid->PID_Out < -100)
+		ipid->PID_Out = -100;
+	else if (ipid->PID_Out > 100)
+		ipid->PID_Out = 100;
+
+	ipid->Pre_Error = ipid->Error; // e(k-1) = e(k)
+}
+
+
 void PID_UpdateSetVel(DCMotor* pMotor, double target_v)
 {
 	pMotor->target_v = target_v;

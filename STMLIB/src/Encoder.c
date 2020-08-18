@@ -65,8 +65,8 @@ static void M2_Encoder_Config(void)
 	En_TIM_BaseStruct.TIM_Period = 0xFFFF;
 	En_TIM_BaseStruct.TIM_CounterMode = TIM_CounterMode_Up;
 	En_TIM_BaseStruct.TIM_ClockDivision = 0;
-	TIM_TimeBaseInit(M2_TIMx, &En_TIM_BaseStruct);
-	TIM_ARRPreloadConfig(M2_TIMx, ENABLE);
+	TIM_TimeBaseInit(M2_TIMx, &En_TIM_BaseStruct); 
+	TIM_ARRPreloadConfig(M2_TIMx, ENABLE); 
 	TIM_EncoderInterfaceConfig(M2_TIMx, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
 	TIM_TimeBaseInit(M2_TIMx, &En_TIM_BaseStruct);
 #ifdef ENCODER_IT
@@ -175,8 +175,6 @@ void Robot_RunVersion2(double duty_v1, double duty_v2)
 		if(duty_v2 >= 0)
 		{
 			M2_Forward();
-			if (duty_v2 > 14 && duty_v2 < 17)
-				duty_v2 -= 4;
 		}
 		else 
 		{
@@ -191,8 +189,6 @@ void Robot_RunVersion2(double duty_v1, double duty_v2)
 		if(duty_v2 >= 0)
 		{
 			M2_Forward();
-			if (duty_v2 > 13 && duty_v2 < 16)
-				duty_v2 -= 5;
 		}
 		else 
 		{
@@ -222,7 +218,7 @@ void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx, Time* pTime)
 {
 	Motor->pre_v = Motor->current_v;
 	Motor->PreEnc = Motor->Enc;
-	Motor->Enc = TIMx->CNT;
+	Motor->Enc = (TIMx == TIM4) ? (0xFFFF - TIMx->CNT) : TIMx->CNT;
 	Motor->Diff_Encoder = Motor->Enc - Motor->PreEnc;
 
 	if (Motor->Diff_Encoder > 30000)

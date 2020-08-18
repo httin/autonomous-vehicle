@@ -273,6 +273,7 @@ enum_Command            Veh_MsgToCmd(char *);
 double                  filter(double alpha, double, double);
 void                    PID_SavePIDParaToFlash(FlashMemory *pflash, DCMotor *M1, DCMotor *M2);
 void                    PID_Compute(DCMotor *ipid, Time* pTime);
+void                    PID_Continious(DCMotor *ipid, Time* pTime);
 void                    PID_UpdateSetVel(DCMotor* pMotor, double target_v);
 void                    PID_ParametersUpdate(DCMotor *ipid, double Kp, double Ki, double Kd);
 void                    PID_ResetPID(DCMotor *ipid);

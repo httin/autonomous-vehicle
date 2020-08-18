@@ -135,10 +135,26 @@ static void send_information(void){
 	U6_TxBuffer[Veh.SendData_Ind++] = ToHex(checksum & 0x0F);
 	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "\r\n");
 
-	/* -------------------------------- stanley information --------------------------------*/
+	/* -------------------------------- gps information -------------------------------- */
 	temp_index = Veh.SendData_Ind;
 
 	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "$VINFO,1,");
+	Veh.SendData_Ind += ToChar(GPS_NEO.GPS_Quality, &U6_TxBuffer[Veh.SendData_Ind], 1); // 1.
+	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
+	Veh.SendData_Ind += ToChar(GPS_NEO.Latitude, &U6_TxBuffer[Veh.SendData_Ind], 8); // 2.
+	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
+	Veh.SendData_Ind += ToChar(GPS_NEO.Longitude, &U6_TxBuffer[Veh.SendData_Ind], 8); // 3.
+	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
+
+	checksum = LRCCalculate(&U6_TxBuffer[temp_index + 1], Veh.SendData_Ind - (temp_index + 1));
+	U6_TxBuffer[Veh.SendData_Ind++] = ToHex((checksum & 0xF0) >> 4);
+	U6_TxBuffer[Veh.SendData_Ind++] = ToHex(checksum & 0x0F);
+	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "\r\n");
+
+	/* -------------------------------- stanley information --------------------------------*/
+	temp_index = Veh.SendData_Ind;
+
+	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "$VINFO,2,");
 	Veh.SendData_Ind += ToChar(GPS_NEO.Thetae * (180/pi), &U6_TxBuffer[Veh.SendData_Ind],3); // 2.
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	Veh.SendData_Ind += ToChar(GPS_NEO.Thetad * (180/pi), &U6_TxBuffer[Veh.SendData_Ind],3); // 3. 
@@ -158,7 +174,7 @@ static void send_information(void){
 	U6_TxBuffer[Veh.SendData_Ind++] = ToHex((checksum & 0xF0) >> 4);
 	U6_TxBuffer[Veh.SendData_Ind++] = ToHex(checksum & 0x0F);
 	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "\r\n");
-	/* -------------------------------- stanley information --------------------------------*/
+	/* -------------------------------- manual information --------------------------------*/
 	if (Veh.Mode == Manual_Mode) 
 	{
 		temp_index = Veh.SendData_Ind;
@@ -312,6 +328,7 @@ int main(void)
 
 	//PID_SaveManual();
 	//GPS_SaveManual();
+	// Robot_RunVersion2(20, 20);
 	while(1)
 	{
 		if(VehStt.Veh_SampleState)
@@ -434,6 +451,7 @@ int main(void)
 			PID_Compute(&M1, &Timer);
 			PID_Compute(&M2, &Timer);
 			Robot_RunVersion2(M1.PID_Out, M2.PID_Out);
+			
 			VehStt.Veh_SampleVelo = Check_NOK;
 		}
 
