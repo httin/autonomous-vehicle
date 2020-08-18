@@ -270,7 +270,6 @@ void DMA1_Stream5_IRQHandler(void)
 	if(GPS_NEO.GPS_Error == Veh_NoneError)
 	{
 		// U6_SendData(FeedBack(U6_TxBuffer, U2_RxBuffer));
-		
 		VehStt.GPS_DataValid = Check_OK;
 		if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
 		{
@@ -644,7 +643,7 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[4][0] == '!'))
 						{
 							PID_UpdateSetVel(&M1, velo_linear);
-							PID_UpdateSetVel(&M2, -velo_linear);
+							PID_UpdateSetVel(&M2, 0);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,L\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* D - move right */
@@ -652,7 +651,7 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[3][0] == '!') && 
 								(U6.Message[4][0] == 'D'))
 						{
-							PID_UpdateSetVel(&M1, -velo_linear);
+							PID_UpdateSetVel(&M1, 0);
 							PID_UpdateSetVel(&M2, velo_linear);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,R\r\n"));
 						}
@@ -662,7 +661,7 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[4][0] == '!'))
 						{
 							PID_UpdateSetVel(&M1, velo_linear);
-							PID_UpdateSetVel(&M2, velo_linear * 0.5);
+							PID_UpdateSetVel(&M2, velo_linear * 0.3);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LF\r\n"));
 						}
 						else if((U6.Message[1][0] == 'W') && /* WD - move right+forward */
@@ -670,7 +669,7 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[3][0] == '!') && 
 								(U6.Message[4][0] == 'D'))
 						{
-							PID_UpdateSetVel(&M1, velo_linear * 0.5);
+							PID_UpdateSetVel(&M1, velo_linear * 0.3);
 							PID_UpdateSetVel(&M2, velo_linear);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RF\r\n"));
 						}
@@ -680,7 +679,7 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[4][0] == '!'))
 						{
 							PID_UpdateSetVel(&M1, -velo_linear);
-							PID_UpdateSetVel(&M2, -velo_linear * 0.5);
+							PID_UpdateSetVel(&M2, -velo_linear * 0.3);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LB\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* SD - move right+backward */
@@ -688,7 +687,7 @@ void DMA2_Stream2_IRQHandler(void)
 								(U6.Message[3][0] == '!') && 
 								(U6.Message[4][0] == 'D'))
 						{
-							PID_UpdateSetVel(&M1, -velo_linear * 0.5);
+							PID_UpdateSetVel(&M1, -velo_linear * 0.3);
 							PID_UpdateSetVel(&M2, -velo_linear);
 							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RB\r\n"));
 						}
@@ -696,7 +695,6 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, 0);
 							PID_UpdateSetVel(&M2, 0);
-							U6_SendData(FeedBack(U6_TxBuffer, (char *)u6_message));
 						}
 					}
 					break;
