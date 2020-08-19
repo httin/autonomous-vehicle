@@ -712,15 +712,18 @@ void GPS_StanleyControl(GPS *pgps, double v1_rpm, double v2_rpm)
 	if( index > pgps->refPointIndex )
 		pgps->refPointIndex = index;
 
-	pgps->efa = -((pgps->wheelPosX - pgps->P_X[pgps->refPointIndex]) * cos(pgps->heading_angle + pi/2) + 
+	if( !VehStt.Veh_Avoid_Flag )
+	{
+		pgps->efa = -((pgps->wheelPosX - pgps->P_X[pgps->refPointIndex]) * cos(pgps->heading_angle + pi/2) + 
 				(pgps->wheelPosY - pgps->P_Y[pgps->refPointIndex]) * sin(pgps->heading_angle + pi/2));
 
-	pgps->goal_radius = sqrt(pow(pgps->wheelPosX - pgps->P_X[pgps->NbOfWayPoints - 1], 2) + 
+		pgps->goal_radius = sqrt(pow(pgps->wheelPosX - pgps->P_X[pgps->NbOfWayPoints - 1], 2) + 
 							pow(pgps->wheelPosY - pgps->P_Y[pgps->NbOfWayPoints - 1], 2));
 
-	pgps->Thetae = Pi_To_Pi(pgps->heading_angle - pgps->P_Yaw[pgps->refPointIndex]); // [-pi, pi]
-	pgps->Thetad = -atan( (pgps->K) * (pgps->efa) / (pgps->Robot_Velocity + 0.05)); // [-pi/2, pi/2]
-	pgps->Delta_Angle  = (Pi_To_Pi(pgps->Thetae + pgps->Thetad))*(double)180/pi; // [-180, 180]
+		pgps->Thetae = Pi_To_Pi(pgps->heading_angle - pgps->P_Yaw[pgps->refPointIndex]); // [-pi, pi]
+		pgps->Thetad = -atan( (pgps->K) * (pgps->efa) / (pgps->Robot_Velocity + 0.05)); // [-pi/2, pi/2]
+		pgps->Delta_Angle  = (Pi_To_Pi(pgps->Thetae + pgps->Thetad))*(double)180/pi; // [-180, 180]
+	}	
 }
 
 /** @brief  : Controller using Stanley algorithm
@@ -796,10 +799,13 @@ void GPS_PursuitControl(GPS *pgps, double v1_rpm, double v2_rpm)
 	dy = pgps->wheelPosY - pgps->P_Y[pgps->NbOfWayPoints - 1];
 	pgps->goal_radius = sqrt(dx*dx + dy*dy);
 
-	Alpha = atan2(pgps->wheelPosY - pgps->P_Y[pgps->refPointIndex], 
-				pgps->wheelPosX - pgps->P_X[pgps->refPointIndex]) - pgps->heading_angle;
+	if( !VehStt.Veh_Avoid_Flag )
+	{
+		Alpha = atan2(pgps->wheelPosY - pgps->P_Y[pgps->refPointIndex], 
+					pgps->wheelPosX - pgps->P_X[pgps->refPointIndex]) - pgps->heading_angle;
+		pgps->Delta_Angle  = atan2(2*L*sin(Alpha), Lf)*180/pi;
+	}
 
-	pgps->Delta_Angle  = atan2(2*L*sin(Alpha), Lf)*180/pi;
 }
 
 /** @brief  : Header compare GPS message

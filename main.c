@@ -204,19 +204,20 @@ void GPS_StanleyCompute()
 	if(GPS_NEO.Goal_Flag)
 		return;
 
-	if(!VehStt.Veh_Avoid_Flag)
+	if(Veh.Controller == Stanley_Controller)
 	{
-		if(Veh.Controller == Stanley_Controller)
-		{
-			GPS_StanleyControl(&GPS_NEO, M1.current_v, M2.current_v);
-		}
-		else if(Veh.Controller == Pursuit_Controller)
-		{
-			GPS_PursuitControl(&GPS_NEO, M1.current_v, M2.current_v);
-		}
-		Veh.Auto_Velocity = Veh.Max_Velocity;
+		GPS_StanleyControl(&GPS_NEO, M1.current_v, M2.current_v);
+	}
+	else if(Veh.Controller == Pursuit_Controller)
+	{
+		GPS_PursuitControl(&GPS_NEO, M1.current_v, M2.current_v);
 	}
 
+	if( !VehStt.Veh_Avoid_Flag )
+	{
+		Veh.Auto_Velocity = Veh.Max_Velocity;
+	}
+	
 	Mag.Set_Angle = Degree_To_Degree(Mag.Angle + GPS_NEO.Delta_Angle); // [-180, 180]
 	IMU_UpdateFuzzyInput(&Mag);
 	Mag.Fuzzy_Out = Defuzzification_Max_Min(Mag.Fuzzy_Error, Mag.Fuzzy_Error_dot);
