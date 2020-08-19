@@ -658,7 +658,8 @@ void GPS_StanleyControl(GPS *pgps, double v1_rpm, double v2_rpm)
 	pgps->heading_angle = -Mag.Angle * (double)pi/180 + pi; // heading angle of vehicle [rad]
 	v1_mps = Wheel_Radius * 2 * pi * v1_rpm / 60; // [m/s]
 	v2_mps = Wheel_Radius * 2 * pi * v2_rpm / 60; // [m/s]
-	pgps->Robot_Velocity = (v1_mps + v2_mps)/2; 
+	pgps->Robot_Velocity = (v1_mps + v2_mps)/2;
+	pgps->Robot_Velocity = (pgps->Robot_Velocity < 0) ? -pgps->Robot_Velocity : pgps->Robot_Velocity;
 	
 	// Calculate new Pos if there is no new data from GPS
 	if(!pgps->NewDataAvailable)
@@ -721,7 +722,7 @@ void GPS_StanleyControl(GPS *pgps, double v1_rpm, double v2_rpm)
 							pow(pgps->wheelPosY - pgps->P_Y[pgps->NbOfWayPoints - 1], 2));
 
 		pgps->Thetae = Pi_To_Pi(pgps->heading_angle - pgps->P_Yaw[pgps->refPointIndex]); // [-pi, pi]
-		pgps->Thetad = -atan( (pgps->K) * (pgps->efa) / (pgps->Robot_Velocity + 0.05)); // [-pi/2, pi/2]
+		pgps->Thetad = -atan( (pgps->K) * (pgps->efa) / (pgps->Robot_Velocity + 0.3)); // [-pi/2, pi/2]
 		pgps->Delta_Angle  = (Pi_To_Pi(pgps->Thetae + pgps->Thetad))*(double)180/pi; // [-180, 180]
 	}	
 }
@@ -849,6 +850,7 @@ enum_Error	GPS_NMEA_Message(GPS *pgps, uint8_t *inputmessage,	char result[MESSAG
 						GPS_NEO.Latitude = GPS_StringToLat(&result[2][0]); 
 						GPS_NEO.Longitude = GPS_StringToLng(&result[4][0]); 
 						GPS_LatLonToUTM(&GPS_NEO);
+						return Veh_NoneError;
 					} 
 					else 
 						return GPS_DataUnvalid;
@@ -953,9 +955,9 @@ void	Fuzzy_ParametersInit(void)
 	// NE : 0.3 - 1
 	Trapf_Update(&In2_NE,-2,-1,-0.4,-0.05);
 	// ZE : 0 - 0.4
-	Trimf_Update(&In2_ZE,-0.4,0,0.4);
+	Trimf_Update(&In2_ZE, -0.4, 0, 0.4);
 	// PO : 0.3 - 1
-	Trapf_Update(&In2_PO,0.05,0.4,1,2);
+	Trapf_Update(&In2_PO, 0.05, 0.4, 1, 2);
 	/* Output value */
 	NB = -0.95;
 	NM = -0.8;

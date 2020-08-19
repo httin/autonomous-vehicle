@@ -339,7 +339,6 @@ int main(void)
 				/*-------------- Auto mode section ------------------*/
 				/*---------------------------------------------------*/
 				case Auto_Mode:
-
 					if(VehStt.Veh_Auto_Flag)
 					{
 						if(VehStt.GPS_DataValid)
