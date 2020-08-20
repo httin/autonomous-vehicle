@@ -943,21 +943,21 @@ void	Fuzzy_ParametersInit(void)
 	// NB : -2 - -0.17
 	Trapf_Update(&In1_NB,-2,-1,-0.22,-0.17);
 	// NS : 0.15 - 0.45
-	Trimf_Update(&In1_NS,-0.22,-0.11,0);
+	Trimf_Update(&In1_NS, -0.22, -0.11, 0.001);
 	// ZE : 0 - 0.2
-	Trimf_Update(&In1_ZE,-0.011,0,0.011);
+	Trimf_Update(&In1_ZE, -0.11, 0, 0.11);
 	// PS : 0.15 - 0.45
-	Trimf_Update(&In1_PS,0,0.11,0.22);
+	Trimf_Update(&In1_PS, -0.001, 0.11, 0.22);
 	// PB : 0.4 - 1
 	Trapf_Update(&In1_PB,0.17,0.22,1,2);
 
 	/* Input 2 (edot = Set_thetadot - thetadot) */
 	// NE : 0.3 - 1
-	Trapf_Update(&In2_NE,-2,-1,-0.4,-0.05);
+	Trapf_Update(&In2_NE,-2,-1,-0.4,-0.003);
 	// ZE : 0 - 0.4
 	Trimf_Update(&In2_ZE, -0.4, 0, 0.4);
 	// PO : 0.3 - 1
-	Trapf_Update(&In2_PO, 0.05, 0.4, 1, 2);
+	Trapf_Update(&In2_PO, 0.003, 0.4, 1, 2);
 	/* Output value */
 	NB = -0.95;
 	NM = -0.8;
@@ -1184,6 +1184,7 @@ void	IMU_UpdateFuzzyInput(IMU *pimu)
 {
 	pimu->Fuzzy_Error = pimu->Set_Angle - pimu->Angle;
 	pimu->Fuzzy_Error_dot = -(pimu->Angle - pimu->Pre_Angle) / Timer.T;
+	pimu->Pre_Angle = pimu->Angle;
 
 	if(pimu->Fuzzy_Error > 180) 
 		pimu->Fuzzy_Error -= 360;

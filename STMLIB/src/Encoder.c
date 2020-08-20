@@ -218,7 +218,7 @@ void EncoderProcessing(DCMotor* Motor, TIM_TypeDef *TIMx, Time* pTime)
 {
 	Motor->pre_v = Motor->current_v;
 	Motor->PreEnc = Motor->Enc;
-	Motor->Enc = (TIMx == TIM4) ? (0xFFFF - TIMx->CNT) : TIMx->CNT;
+	Motor->Enc = (TIMx == TIM4) ? (-TIMx->CNT) : TIMx->CNT;
 	Motor->Diff_Encoder = Motor->Enc - Motor->PreEnc;
 
 	if (Motor->Diff_Encoder > 30000)

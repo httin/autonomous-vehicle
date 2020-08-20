@@ -347,7 +347,6 @@ void DMA2_Stream2_IRQHandler(void)
 			{
 				/*----------------- Vehicle Config -------------------*/
 				case None:
-					U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,?\r\n"));
 					break;
 				
 				case Vehicle_Config:
@@ -505,17 +504,10 @@ void DMA2_Stream2_IRQHandler(void)
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"DATA"))
 					{
-						if(Veh.Mode == Auto_Mode)
-						{
-							Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[2][0])));
-							GPS_NEO.K = GetValueFromString(&U6.Message[3][0]);
-							GPS_NEO.Step = GetValueFromString(&U6.Message[4][0]);
-							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
-						}
-						else
-						{
-							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,0\r\n"));
-						}
+						Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[2][0])));
+						GPS_NEO.K = GetValueFromString(&U6.Message[3][0]);
+						GPS_NEO.Step = GetValueFromString(&U6.Message[4][0]);
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"SUPDT"))
 					{
@@ -583,7 +575,7 @@ void DMA2_Stream2_IRQHandler(void)
 					}
 					else
 					{
-						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,VPLAN,?\r\n"));
+						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,VPLAN,2\r\n"));
 					}
 					break;
 					

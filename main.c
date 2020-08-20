@@ -375,7 +375,6 @@ int main(void)
 						PID_UpdateSetVel(&M2, 0);
 					}
 					send_VDATA();
-					Mag.Pre_Angle = Mag.Angle;
 					break;
 				
 				/*--------------- Manual mode section ----------------*/
@@ -393,8 +392,6 @@ int main(void)
 						PID_UpdateSetVel(&M1, (+ fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
 						PID_UpdateSetVel(&M2, (- fabs(Mag.Fuzzy_Out)) * Veh.Manual_Velocity);
 					}
-
-					Mag.Pre_Angle = Mag.Angle;
 					break;
 				
 				/*--------------- Calibration section ------------------*/
