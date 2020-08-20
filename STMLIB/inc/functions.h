@@ -77,6 +77,7 @@ typedef struct Status{
 	enum_Status	       Veh_Calib_Flag;              // Calibration IMU 
 	enum_Status	       Veh_Auto_Flag;               // 
 	enum_Status	       Veh_Avoid_Flag;              // 
+	enum_Status        Veh_MapAvailable;            // Set when vehicle has a full map
 	enum_Status	       GPS_DataValid;               // Set when new gps packet is none error
 	enum_Status	       GPS_Start_Receive_PathCor;   // Starting receive map coordinate from C#
 	enum_Status	       GPS_SelfUpdatePosition_Flag; // 

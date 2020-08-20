@@ -45,11 +45,11 @@
 /* Types */
 
 /* Export variables */
-#define IMU_TX_BUFFERSIZE 50
+#define IMU_TX_BUFFERSIZE 60
 #define IMU_RX_BUFFERSIZE 100
 extern 		uint8_t 	U1_TxBuffer[IMU_TX_BUFFERSIZE], U1_RxBuffer[IMU_RX_BUFFERSIZE];
 #define ROVER_TX_BUFFERSIZE 0
-#define ROVER_RX_BUFFERSIZE 200
+#define ROVER_RX_BUFFERSIZE 100
 extern 		uint8_t		U2_RxBuffer[ROVER_RX_BUFFERSIZE];
 #define LORA_RX_BUFFERSIZE	58
 #define LORA_TX_BUFFERSIZE 200

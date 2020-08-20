@@ -550,6 +550,7 @@ void DMA2_Stream2_IRQHandler(void)
 						LED_OFF(LED_RED_PIN);  // Ket thuc nhan toa do, led off
 						GPS_UpdatePathYaw(&GPS_NEO);
 						U6_SendData(FeedBack(U6_TxBuffer, "$SINFO,VPLAN,0\r\n"));
+						VehStt.Veh_MapAvailable = Check_OK;
 					}
 					else if (StringHeaderCompare(&U6.Message[1][0],"SPLINE"))
 					{
@@ -558,7 +559,7 @@ void DMA2_Stream2_IRQHandler(void)
 						GPS_NEO.NbOfWayPoints = (int)GetValueFromString(&U6.Message[2][0]);
 						GPS_NEO.NbOfP = 0; /* set current index of array map */
 						GPS_NEO.Goal_Flag = Check_NOK;
-						VehStt.Veh_Auto_Flag = Check_NOK;
+						VehStt.Veh_MapAvailable = Check_NOK;
 						VehStt.GPS_Start_Receive_PathCor = Check_OK; 
 						GPS_ClearPathBuffer(&GPS_NEO); 
 						LED_ON(LED_RED_PIN); // Bat dau nhan toa do, led on

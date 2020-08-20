@@ -722,8 +722,8 @@ void GPS_StanleyControl(GPS *pgps, double v1_rpm, double v2_rpm)
 							pow(pgps->wheelPosY - pgps->P_Y[pgps->NbOfWayPoints - 1], 2));
 
 		pgps->Thetae = Pi_To_Pi(pgps->heading_angle - pgps->P_Yaw[pgps->refPointIndex]); // [-pi, pi]
-		pgps->Thetad = -atan( (pgps->K) * (pgps->efa) / (pgps->Robot_Velocity + 0.3)); // [-pi/2, pi/2]
-		pgps->Delta_Angle  = (Pi_To_Pi(pgps->Thetae + pgps->Thetad))*(double)180/pi; // [-180, 180]
+		pgps->Thetad = -atan2( (pgps->K) * (pgps->efa) , (pgps->Robot_Velocity + 0.15)); // [-pi, pi]
+		pgps->Delta_Angle  = (pgps->Thetae + pgps->Thetad)*(double)180/pi; // [-180, 180]
 	}	
 }
 
