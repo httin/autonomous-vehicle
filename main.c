@@ -139,8 +139,11 @@ static void send_information(void){
 	temp_index = Veh.SendData_Ind;
 
 	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "$VINFO,1,");
-	Veh.SendData_Ind += ToChar(GPS_NEO.GPS_Quality, &U6_TxBuffer[Veh.SendData_Ind], 1); // 1.
+	// Veh.SendData_Ind += ToChar(GPS_NEO.GPS_Quality, &U6_TxBuffer[Veh.SendData_Ind], 1); // 1.
+	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)(GPS_NEO.GPS_Quality + '0');
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
+	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)(VehStt.Veh_Avoid_Flag + '0');
+	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';	
 	Veh.SendData_Ind += ToChar(GPS_NEO.Latitude, &U6_TxBuffer[Veh.SendData_Ind], 10); // 2.
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	Veh.SendData_Ind += ToChar(GPS_NEO.Longitude, &U6_TxBuffer[Veh.SendData_Ind], 10); // 3.
@@ -329,7 +332,6 @@ int main(void)
 
 	//PID_SaveManual();
 	//GPS_SaveManual();
-	// Robot_RunVersion2(20, 20);
 	while(1)
 	{
 		if(VehStt.Veh_SampleState)

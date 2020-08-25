@@ -655,7 +655,7 @@ void GPS_StanleyControl(GPS *pgps, double v1_rpm, double v2_rpm)
 	double v1_mps, v2_mps;
 	double L = 0.19, Lf = 0; // L is distance from (Xc, Yc) to the front wheel
 
-	pgps->heading_angle = -Mag.Angle * (double)pi/180 + pi; // heading angle of vehicle [rad]
+	pgps->heading_angle = Pi_To_Pi(-Mag.Angle * (double)pi/180 + pi); // heading angle of vehicle [rad] [-pi, pi]
 	v1_mps = Wheel_Radius * 2 * pi * v1_rpm / 60; // [m/s]
 	v2_mps = Wheel_Radius * 2 * pi * v2_rpm / 60; // [m/s]
 	pgps->Robot_Velocity = (v1_mps + v2_mps)/2;
@@ -713,16 +713,17 @@ void GPS_StanleyControl(GPS *pgps, double v1_rpm, double v2_rpm)
 	if( index > pgps->refPointIndex )
 		pgps->refPointIndex = index;
 
+
+	pgps->goal_radius = sqrt(pow(pgps->wheelPosX - pgps->P_X[pgps->NbOfWayPoints - 1], 2) + 
+						pow(pgps->wheelPosY - pgps->P_Y[pgps->NbOfWayPoints - 1], 2));
+		
 	if( !VehStt.Veh_Avoid_Flag )
 	{
 		pgps->efa = -((pgps->wheelPosX - pgps->P_X[pgps->refPointIndex]) * cos(pgps->heading_angle + pi/2) + 
 				(pgps->wheelPosY - pgps->P_Y[pgps->refPointIndex]) * sin(pgps->heading_angle + pi/2));
 
-		pgps->goal_radius = sqrt(pow(pgps->wheelPosX - pgps->P_X[pgps->NbOfWayPoints - 1], 2) + 
-							pow(pgps->wheelPosY - pgps->P_Y[pgps->NbOfWayPoints - 1], 2));
-
 		pgps->Thetae = Pi_To_Pi(pgps->heading_angle - pgps->P_Yaw[pgps->refPointIndex]); // [-pi, pi]
-		pgps->Thetad = -atan2( (pgps->K) * (pgps->efa) , (pgps->Robot_Velocity + 0.15)); // [-pi, pi]
+		pgps->Thetad = -atan2( (pgps->K) * (pgps->efa) , (pgps->Robot_Velocity + 0.08)); // [-pi, pi]
 		pgps->Delta_Angle  = (pgps->Thetae + pgps->Thetad)*(double)180/pi; // [-180, 180]
 	}	
 }

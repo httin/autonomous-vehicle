@@ -53,10 +53,21 @@
 
 /* Data Types */
 /* Export Functions */
+#ifdef REVERSE_MOTOR
+
 #define M1_Forward()	GPIO_SetBits(Dir_GPIOx, Dir_GPIO_Pin_M1)
 #define M1_Backward()	GPIO_ResetBits(Dir_GPIOx, Dir_GPIO_Pin_M1)
 #define M2_Forward()	GPIO_SetBits(Dir_GPIOx, Dir_GPIO_Pin_M2)
 #define M2_Backward()	GPIO_ResetBits(Dir_GPIOx, Dir_GPIO_Pin_M2)
+
+#else
+
+#define M1_Backward()	GPIO_SetBits(Dir_GPIOx, Dir_GPIO_Pin_M1)
+#define M1_Forward()	GPIO_ResetBits(Dir_GPIOx, Dir_GPIO_Pin_M1)
+#define M2_Backward()	GPIO_SetBits(Dir_GPIOx, Dir_GPIO_Pin_M2)
+#define M2_Forward()	GPIO_ResetBits(Dir_GPIOx, Dir_GPIO_Pin_M2)
+
+#endif
 
 #define Robot_Forward()\
 	M1_Forward();\

@@ -240,7 +240,7 @@ void DMA2_Stream5_IRQHandler(void)
 				{
 					VehStt.Veh_Avoid_Flag = Check_OK;
 					Veh.Auto_Velocity = MPS2RPM(GetValueFromString(&U1.Message[2][0]));
-					GPS_NEO.Delta_Angle = GetValueFromString(&U1.Message[3][0]);
+					GPS_NEO.Delta_Angle = GetValueFromString(&U1.Message[3][0])*180/pi;
 				}
 			}
 		}
@@ -494,11 +494,12 @@ void DMA2_Stream2_IRQHandler(void)
 					{
 						if(GPS_NEO.Goal_Flag)
 						{
+							GPS_NEO.refPointIndex = -1;
 							GPS_NEO.Goal_Flag = Check_NOK;
-							VehStt.Veh_Auto_Flag = Check_NOK;
 							Convert_Double_Array(GPS_NEO.P_X, GPS_NEO.NbOfWayPoints);
 							Convert_Double_Array(GPS_NEO.P_Y, GPS_NEO.NbOfWayPoints);
 							GPS_UpdatePathYaw(&GPS_NEO);
+							VehStt.Veh_Auto_Flag = Check_NOK;
 							U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 						}
 					}
@@ -559,6 +560,7 @@ void DMA2_Stream2_IRQHandler(void)
 						GPS_NEO.NbOfWayPoints = (int)GetValueFromString(&U6.Message[2][0]);
 						GPS_NEO.NbOfP = 0; /* set current index of array map */
 						GPS_NEO.Goal_Flag = Check_NOK;
+						GPS_NEO.refPointIndex = -1;
 						VehStt.Veh_MapAvailable = Check_NOK;
 						VehStt.GPS_Start_Receive_PathCor = Check_OK; 
 						GPS_ClearPathBuffer(&GPS_NEO); 
