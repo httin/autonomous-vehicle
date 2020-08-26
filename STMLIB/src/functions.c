@@ -948,7 +948,7 @@ void	Fuzzy_ParametersInit(void)
 	// ZE : 0 - 0.2
 	Trimf_Update(&In1_ZE, -0.11, 0, 0.11);
 	// PS : 0.15 - 0.45
-	Trimf_Update(&In1_PS, -0.001, 0.11, 0.22);
+	Trimf_Update(&In1_PS, 0.001, 0.11, 0.22);
 	// PB : 0.4 - 1
 	Trapf_Update(&In1_PB,0.17,0.22,1,2);
 

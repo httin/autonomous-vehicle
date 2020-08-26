@@ -172,30 +172,23 @@ void Robot_RunVersion2(double duty_v1, double duty_v2)
 	if(duty_v1 >= 0)
 	{
 		M1_Forward();
-		if(duty_v2 >= 0)
-		{
-			M2_Forward();
-		}
-		else 
-		{
-			duty_v2 = -duty_v2;
-			M2_Backward();
-		}
 	}
 	else 
 	{
 		duty_v1 = -duty_v1;
 		M1_Backward();
-		if(duty_v2 >= 0)
-		{
-			M2_Forward();
-		}
-		else 
-		{
-			duty_v2 = -duty_v2;
-			M2_Backward();
-		}
 	}
+
+	if(duty_v2 >= 0)
+	{
+		M2_Forward();
+	}
+	else 
+	{
+		duty_v2 = -duty_v2;
+		M2_Backward();
+	}
+	
 	PWM_TIMx->CCR1 = (uint16_t)((duty_v1 * PWM_PERIOD) / 100);
 	PWM_TIMx->CCR2 = (uint16_t)((duty_v2 * PWM_PERIOD) / 100);
 }
