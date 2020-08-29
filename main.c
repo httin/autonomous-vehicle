@@ -93,18 +93,18 @@ static void send_VDATA(void){
 	uint8_t checksum;
 
 	index += append_string_to_buffer(&U1_TxBuffer[index], "$VDATA,");
-	index += ToChar(GPS_NEO.wheelPosX, &U1_TxBuffer[index], 11);
+	index += ToChar(GPS_NEO.wheelPosX, &U1_TxBuffer[index], 13);
 	U1_TxBuffer[index++] = (uint8_t)',';
-	index += ToChar(GPS_NEO.wheelPosY, &U1_TxBuffer[index], 11);
+	index += ToChar(GPS_NEO.wheelPosY, &U1_TxBuffer[index], 13);
 	U1_TxBuffer[index++] = (uint8_t)',';
 	index += ToChar(GPS_NEO.heading_angle, &U1_TxBuffer[index], 5);
 	U1_TxBuffer[index++] = (uint8_t)',';
 	index += ToChar(GPS_NEO.refPointIndex, &U1_TxBuffer[index], 1);
 	U1_TxBuffer[index++] = (uint8_t)',';
 
-	checksum = LRCCalculate(&U1_TxBuffer[1], index - 1);
-	U1_TxBuffer[index++] = ToHex((checksum & 0xF0) >> 4);
-	U1_TxBuffer[index++] = ToHex(checksum & 0x0F);
+	// checksum = LRCCalculate(&U1_TxBuffer[1], index - 1);
+	// U1_TxBuffer[index++] = ToHex((checksum & 0xF0) >> 4);
+	// U1_TxBuffer[index++] = ToHex(checksum & 0x0F);
 	index += append_string_to_buffer(&U1_TxBuffer[index], "\r\n");	
 
 	U1_SendData(index);
@@ -143,9 +143,9 @@ static void send_information(void){
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)(VehStt.Veh_Avoid_Flag + '0');
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';	
-	Veh.SendData_Ind += ToChar(GPS_NEO.Latitude, &U6_TxBuffer[Veh.SendData_Ind], 15); // 2.
+	Veh.SendData_Ind += ToChar(GPS_NEO.Latitude, &U6_TxBuffer[Veh.SendData_Ind], 13); // 2.
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.Longitude, &U6_TxBuffer[Veh.SendData_Ind], 15); // 3.
+	Veh.SendData_Ind += ToChar(GPS_NEO.Longitude, &U6_TxBuffer[Veh.SendData_Ind], 13); // 3.
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 
 	checksum = LRCCalculate(&U6_TxBuffer[temp_index + 1], Veh.SendData_Ind - (temp_index + 1));
@@ -157,9 +157,9 @@ static void send_information(void){
 	temp_index = Veh.SendData_Ind;
 
 	Veh.SendData_Ind += append_string_to_buffer(&U6_TxBuffer[Veh.SendData_Ind], "$VINFO,2,");
-	Veh.SendData_Ind += ToChar(GPS_NEO.Thetae * (180/pi), &U6_TxBuffer[Veh.SendData_Ind],3); // 2.
+	Veh.SendData_Ind += ToChar(GPS_NEO.Thetae, &U6_TxBuffer[Veh.SendData_Ind],3); // 2.
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
-	Veh.SendData_Ind += ToChar(GPS_NEO.Thetad * (180/pi), &U6_TxBuffer[Veh.SendData_Ind],3); // 3. 
+	Veh.SendData_Ind += ToChar(GPS_NEO.Thetad, &U6_TxBuffer[Veh.SendData_Ind],3); // 3. 
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
 	Veh.SendData_Ind += ToChar(GPS_NEO.Delta_Angle, &U6_TxBuffer[Veh.SendData_Ind],3); // 4.
 	U6_TxBuffer[Veh.SendData_Ind++] = (uint8_t)',';
@@ -222,6 +222,7 @@ void GPS_StanleyCompute()
 	Mag.Set_Angle = Degree_To_Degree(Mag.Angle + GPS_NEO.Delta_Angle); // [-180, 180]
 	IMU_UpdateFuzzyInput(&Mag);
 	Mag.Fuzzy_Out = Defuzzification_Max_Min(Mag.Fuzzy_Error, Mag.Fuzzy_Error_dot);
+	// Mag.Fuzzy_Out = Mag.Pre_Fuzzy_Out + Mag.Fuzzy_Out * Timer.T;
 
 	if(Mag.Fuzzy_Out >= 0)
 	{
@@ -330,6 +331,7 @@ int main(void)
 
 	//PID_SaveManual();
 	//GPS_SaveManual();
+
 	while(1)
 	{
 		if(VehStt.Veh_SampleState)
@@ -403,7 +405,7 @@ int main(void)
 					{
 						if(Veh.Distance < 39400 * 30)
 						{
-							Veh.Distance = fabs(M2.Total_Encoder);
+							Veh.Distance = (M2.Total_Encoder > 0) ? M2.Total_Encoder : -M2.Total_Encoder;
 						}
 						else // calibration is finished after rotating more than 10 revolutions
 						{
@@ -427,9 +429,10 @@ int main(void)
 				
 				case Soft_Reset_Mode:
 					Veh.Mode = None_Mode;
-					PID_UpdateSetVel(&M1, 0);
-					PID_UpdateSetVel(&M2, 0);
 					NVIC_SystemReset();
+					break;
+
+				case None_Mode:
 					break;
 
 				default:

@@ -163,6 +163,7 @@ static void SaveDataToInternalFlash(int key)
 			break;
 	}
 }
+
 /**
   * @brief  This function reset motor
   * @param  None
@@ -179,7 +180,6 @@ void Reset_Motor()
 	VehStt.Veh_Auto_Flag = Check_NOK;
 	VehStt.Veh_Avoid_Flag = Check_NOK;
 }
-
 
 /**
   * @brief  This function handles SysTick Handler every 1/f (s).
@@ -269,12 +269,7 @@ void DMA1_Stream5_IRQHandler(void)
 
 	if(GPS_NEO.GPS_Error == Veh_NoneError)
 	{
-		// U6_SendData(FeedBack(U6_TxBuffer, U2_RxBuffer));
 		VehStt.GPS_DataValid = Check_OK;
-		if((GPS_NEO.GPS_Quality == Fixed_RTK) || (GPS_NEO.GPS_Quality == Float_RTK))
-		{
-			updateSelfPos(&selfPosition, GPS_NEO.CorX, GPS_NEO.CorY);
-		}
 	}
 	else
 	{

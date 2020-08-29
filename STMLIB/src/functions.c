@@ -49,10 +49,10 @@ void PID_Compute(DCMotor *ipid, Time* pTime)
 	/* High Pass Filter */
 	ipid->PID_Out = filter(0.08, ipid->PID_Out, ipid->Pre_PID);
 
-	if (ipid->PID_Out < -100)
-		ipid->PID_Out = -100;
-	else if (ipid->PID_Out > 100)
-		ipid->PID_Out = 100;
+	if (ipid->PID_Out < -MAX_PWM)
+		ipid->PID_Out = -MAX_PWM;
+	else if (ipid->PID_Out > MAX_PWM)
+		ipid->PID_Out = MAX_PWM;
 
 	ipid->Pre2_Error = ipid->Pre_Error; // e(k-2) = e(k-1)
 	ipid->Pre_Error = ipid->Error; // e(k-1) = e(k)
@@ -69,10 +69,10 @@ void PID_Continious(DCMotor *ipid, Time* pTime)
 
 	ipid->PID_Out = filter(0.08, ipid->PID_Out, ipid->Pre_PID);
 
-	if (ipid->PID_Out < -100)
-		ipid->PID_Out = -100;
-	else if (ipid->PID_Out > 100)
-		ipid->PID_Out = 100;
+	if (ipid->PID_Out < -MAX_PWM)
+		ipid->PID_Out = -MAX_PWM;
+	else if (ipid->PID_Out > MAX_PWM)
+		ipid->PID_Out = MAX_PWM;
 
 	ipid->Pre_Error = ipid->Error; // e(k-1) = e(k)
 }
@@ -551,11 +551,11 @@ void GPS_ParametersInit(GPS *pgps)
 **/
 void GPS_UpdatePathYaw(GPS *pgps)
 {
-	for(int i = 0; i < pgps->NbOfP - 1; i++)
+	for(int i = 0; i < pgps->NbOfP; i++)
 	{
 		pgps->P_Yaw[i] = atan2(pgps->P_Y[i + 1] - pgps->P_Y[i], pgps->P_X[i + 1] - pgps->P_X[i]);
 	}
-	pgps->P_Yaw[pgps->NbOfP - 1] = pgps->P_Yaw[pgps->NbOfP - 2];
+	pgps->P_Yaw[pgps->NbOfP] = pgps->P_Yaw[pgps->NbOfP - 1];
 }
 
 /** @brief  : Save GPS path coordinate to internal flash memory
@@ -725,6 +725,10 @@ void GPS_StanleyControl(GPS *pgps, double v1_rpm, double v2_rpm)
 		pgps->Thetae = Pi_To_Pi(pgps->heading_angle - pgps->P_Yaw[pgps->refPointIndex]); // [-pi, pi]
 		pgps->Thetad = -atan2( (pgps->K) * (pgps->efa) , (pgps->Robot_Velocity + 0.08)); // [-pi, pi]
 		pgps->Delta_Angle  = (pgps->Thetae + pgps->Thetad)*(double)180/pi; // [-180, 180]
+		if(pgps->Delta_Angle > 160)
+			pgps->Delta_Angle = 160;
+		else if(pgps->Delta_Angle < -160)
+			pgps->Delta_Angle = -160;
 	}	
 }
 
@@ -830,7 +834,7 @@ enum_Status	GPS_HeaderCompare(uint8_t *s1, char Header[5])
 **/
 enum_Error	GPS_NMEA_Message(GPS *pgps, uint8_t *inputmessage,	char result[MESSAGE_ROW][MESSAGE_COL])
 {
-	int Message_Index = 0, Length = 0;
+	int Message_Index = 0;
 
 	while(inputmessage[Message_Index] != '\0' && (Message_Index < ROVER_RX_BUFFERSIZE))
 	{
@@ -839,12 +843,13 @@ enum_Error	GPS_NMEA_Message(GPS *pgps, uint8_t *inputmessage,	char result[MESSAG
 		{
 			if(GPS_HeaderCompare(&inputmessage[Message_Index + 1],"GNGGA"))
 			{
-				Length = LengthOfLine(&inputmessage[Message_Index]);
-
+#ifdef USE_NMEA_CKSUM
+				int Length = LengthOfLine(&inputmessage[Message_Index]);
 				if( IsCorrectMessage(&inputmessage[Message_Index + 1], Length - 4, 
 					inputmessage[Message_Index + Length - 2], 
 					inputmessage[Message_Index + Length - 1]) )
 				{
+#endif
 					GetMessageInfo( (char *)&inputmessage[Message_Index], result, ',');
 					if ( (pgps->GPS_Quality = (enum_GPS_Quality) GetValueFromString(&result[6][0])) != 0 )
 					{
@@ -855,9 +860,11 @@ enum_Error	GPS_NMEA_Message(GPS *pgps, uint8_t *inputmessage,	char result[MESSAG
 					} 
 					else 
 						return GPS_DataUnvalid;
+#ifdef USE_NMEA_CKSUM
 				} 
 				else 
 					return GPS_GxGGACheckSum_Err;
+#endif
 			}
 		}
 		++Message_Index;
@@ -1169,7 +1176,7 @@ double Defuzzification2_Max_Min(double e, double edot)
 		num = pBeta[0]*NS + pBeta[1]*ZE + pBeta[2]*PS + pBeta[3]*PM + pBeta[4]*PB;
 		den = pBeta[0] + pBeta[1] + pBeta[2] + pBeta[3] + pBeta[4];
 	}
-	return num/den;
+	return (den == 0) ? 0 : (num/den);
 }
 
 
@@ -1186,6 +1193,7 @@ void	IMU_UpdateFuzzyInput(IMU *pimu)
 	pimu->Fuzzy_Error = pimu->Set_Angle - pimu->Angle;
 	pimu->Fuzzy_Error_dot = -(pimu->Angle - pimu->Pre_Angle) / Timer.T;
 	pimu->Pre_Angle = pimu->Angle;
+	pimu->Pre_Fuzzy_Out = pimu->Fuzzy_Out;
 
 	if(pimu->Fuzzy_Error > 180) 
 		pimu->Fuzzy_Error -= 360;

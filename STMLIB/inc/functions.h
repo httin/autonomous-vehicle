@@ -112,7 +112,7 @@ typedef	struct  DCMotor{
 	double    Pre_PID; // u(k-1)
 	double    PID_Out; // u(k)
 	/* Encoder parameters */
-	int32_t   Total_Encoder;
+	int64_t   Total_Encoder;
 	int32_t   Diff_Encoder;
 	uint16_t  Enc;
 	uint16_t  PreEnc;
@@ -143,6 +143,7 @@ typedef struct IMU {
 	double      Pre_Angle;
 	/* Fuzzy input and output */
 	double      Fuzzy_Out;
+	double      Pre_Fuzzy_Out;
 	double      Fuzzy_Error;
 	double      Fuzzy_Error_dot;
 	/* Variables Ke, Kedot and Ku */
@@ -177,8 +178,8 @@ typedef struct GPS {
 	/* GPS NEO M8P input coordinates */
 	double              Latitude;
 	double              Longitude;
-	int                 NbOfWayPoints;
-	int                 NbOfP;
+	int                 NbOfWayPoints; // 100 points
+	int                 NbOfP; // [0..99]
 	int                 NewDataAvailable;
 	int                 refPointIndex;
 	enum_Status         Goal_Flag;
@@ -216,9 +217,7 @@ typedef struct FlashMemory{
 } FlashMemory;
 
 #define	           pi                               (double)3.14159265358979
-#define            K1                               1/(2*pi)
-#define	           K2                               4/pi
-#define	           K3                               1
+#define            MAX_PWM                          92
 #define            SEARCH_OFFSET                    5          // for nearest point searching
 #define	           Wheel_Radius                     0.085
 #define            DISTANCE_BETWEEN_TWO_WHEELS      0.388
