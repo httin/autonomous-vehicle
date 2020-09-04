@@ -481,32 +481,33 @@ double Degree_To_Degree(double angle)
 void GPS_LatLonToUTM(GPS *pgps)
 {
 	double la, lo, lat, lon, sa, sb, e2, e2cuadrada, c, Huso, S, deltaS, a, epsilon, 
-		nu, v, ta, a1, a2, j2, j4, j6, alfa, beta, gama, Bm, xx, yy, dx, dy;
+		nu, v, ta, a1, a2, j2, j4, j6, alfa, beta, gama, Bm, xx, yy, dx, dy, coslat;
 	la = pgps->Latitude;
 	lo = pgps->Longitude;
 	sa = 6378137.00000;
 	sb = 6356752.314245;
-	e2 = pow(pow(sa,2) - pow(sb,2),0.5) / sb;
-	e2cuadrada = pow(e2,2);
-	c = pow(sa,2) / sb;
+	e2 = pow((sa*sa) - (sb*sb), 0.5) / sb;
+	e2cuadrada = e2*e2;
+	c = (sa*sa) / sb;
 	lat = la * (pi / 180); // convert from degree to radian
 	lon = lo * (pi / 180);
+	coslat = cos(lat);
 	Huso = ((int) ((lo / 6) + 31) );
 	S = ((Huso * 6) - 183);
 	deltaS = lon - (S * (pi / 180));
-	a = cos(lat) * sin(deltaS);
+	a = coslat * sin(deltaS);
 	epsilon = 0.5 * log((1 + a) / (1 - a));
 	nu = atan(tan(lat) / cos(deltaS)) - lat;
-	v = (c / pow((1 + (e2cuadrada * pow(cos(lat),2))),0.5)) * 0.9996;
-	ta = (e2cuadrada / 2) * pow(epsilon,2) * pow(cos(lat),2);
+	v = (c / pow((1 + (e2cuadrada * pow(coslat,2))), 0.5)) * 0.9996;
+	ta = (e2cuadrada / 2) * (epsilon*epsilon) * (coslat*coslat);
 	a1 = sin(2 * lat);
-	a2 = a1 * pow(cos(lat),2);
+	a2 = a1 * (coslat*coslat);
 	j2 = lat + (a1 / 2);
 	j4 = ((3 * j2) + a2) / 4;
-	j6 = ((5 * j4) + (a2 * pow(cos(lat),2))) / 3;
+	j6 = ((5 * j4) + (a2 * (coslat*coslat))) / 3;
 	alfa = ((double)3 / (double)4) * e2cuadrada;
-	beta = ((double)5 / (double)3) * pow(alfa,2);
-	gama = ((double)35 / (double)27) * pow(alfa,3);
+	beta = ((double)5 / (double)3) * (alfa*alfa);
+	gama = ((double)35 / (double)27) * (alfa*alfa*alfa);
 	Bm = 0.9996 * c * (lat - alfa * j2 + beta * j4 - gama * j6);
 	xx = epsilon * v * (1 + (ta / 3)) + 500000;
 	yy = nu * v * (1 + ta) + Bm;
@@ -542,6 +543,7 @@ void GPS_ParametersInit(GPS *pgps)
 	pgps->GPS_Error = Veh_NoneError;
 	pgps->refPointIndex = -1; // there is no point that was referred
 	pgps->K = 0.5;
+	pgps->Ksoft = 0.08;
 	pgps->Step = 0.5;
 }
 
@@ -723,7 +725,7 @@ void GPS_StanleyControl(GPS *pgps, double v1_rpm, double v2_rpm)
 				(pgps->wheelPosY - pgps->P_Y[pgps->refPointIndex]) * sin(pgps->heading_angle + pi/2));
 
 		pgps->Thetae = Pi_To_Pi(pgps->heading_angle - pgps->P_Yaw[pgps->refPointIndex]); // [-pi, pi]
-		pgps->Thetad = -atan2( (pgps->K) * (pgps->efa) , (pgps->Robot_Velocity + 0.08)); // [-pi, pi]
+		pgps->Thetad = -atan2( (pgps->K) * (pgps->efa) , (pgps->Robot_Velocity + pgps->Ksoft)); // [-pi, pi]
 		pgps->Delta_Angle  = (pgps->Thetae + pgps->Thetad)*(double)180/pi; // [-180, 180]
 		if(pgps->Delta_Angle > 160)
 			pgps->Delta_Angle = 160;

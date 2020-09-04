@@ -502,7 +502,8 @@ void DMA2_Stream2_IRQHandler(void)
 					{
 						Veh_UpdateMaxVelocity(&Veh, MPS2RPM(GetValueFromString(&U6.Message[2][0])));
 						GPS_NEO.K = GetValueFromString(&U6.Message[3][0]);
-						GPS_NEO.Step = GetValueFromString(&U6.Message[4][0]);
+						GPS_NEO.Ksoft = GetValueFromString(&U6.Message[4][0]);
+						VehStt.Veh_AvoidEnable = (enum_Status)U6.Message[5][0];
 						U6_SendData(FeedBack(U6_TxBuffer,"$SINFO,1\r\n"));
 					}
 					else if(StringHeaderCompare(&U6.Message[1][0],"SUPDT"))
@@ -616,7 +617,6 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, velo_linear);
 							PID_UpdateSetVel(&M2, velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,F\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* S - move backward */
 								(U6.Message[2][0] == 'S') && 
@@ -625,7 +625,6 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, -velo_linear);
 							PID_UpdateSetVel(&M2, -velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,B\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* A - move left */
 								(U6.Message[2][0] == '!') && 
@@ -634,7 +633,6 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, velo_linear);
 							PID_UpdateSetVel(&M2, 0);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,L\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* D - move right */
 								(U6.Message[2][0] == '!') && 
@@ -643,7 +641,6 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, 0);
 							PID_UpdateSetVel(&M2, velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,R\r\n"));
 						}
 						else if((U6.Message[1][0] == 'W') && /* WA - move left+forward */
 								(U6.Message[2][0] == '!') && 
@@ -652,7 +649,6 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, velo_linear);
 							PID_UpdateSetVel(&M2, velo_linear * 0.3);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LF\r\n"));
 						}
 						else if((U6.Message[1][0] == 'W') && /* WD - move right+forward */
 								(U6.Message[2][0] == '!') && 
@@ -661,7 +657,6 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, velo_linear * 0.3);
 							PID_UpdateSetVel(&M2, velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RF\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* SA - move left+backward */
 								(U6.Message[2][0] == 'S') && 
@@ -670,7 +665,6 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, -velo_linear);
 							PID_UpdateSetVel(&M2, -velo_linear * 0.3);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,LB\r\n"));
 						}
 						else if((U6.Message[1][0] == '!') && /* SD - move right+backward */
 								(U6.Message[2][0] == 'S') && 
@@ -679,12 +673,6 @@ void DMA2_Stream2_IRQHandler(void)
 						{
 							PID_UpdateSetVel(&M1, -velo_linear * 0.3);
 							PID_UpdateSetVel(&M2, -velo_linear);
-							U6_SendData(FeedBack(U6_TxBuffer,"$KCTRL,RB\r\n"));
-						}
-						else
-						{
-							PID_UpdateSetVel(&M1, 0);
-							PID_UpdateSetVel(&M2, 0);
 						}
 					}
 					break;
