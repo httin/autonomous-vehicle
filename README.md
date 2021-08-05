@@ -1,6 +1,10 @@
 # autonomous-vehicle
 
-*(In developing process...)*
+*This is my graduation final project*
+A robot which perform two main features: Trajectory Tracking and Obstacle Avoidance.
+1. Trajectory tracking: Choose some points through google map interface integrated in app, then generate a likely-curve line (trajectory) for robot. It's mission is to follow the line from A to B with minimum average error.
+2. While tracking the trajectory, robot might face some obstacles (static or movable) which it has to deflect (maybe get out of trajectory) then comeback to the line and continue to track the path.
+Technologies: C/C++, C#, .NET, Python, Robot operating system, Hardware & Sensors (self-designed electronic circuits, gps, imu, RF, camera, microcontroller, embedded computer)
 
 **1. Hardware**
 1) 1 stm32f411 + 1 stm32f407
